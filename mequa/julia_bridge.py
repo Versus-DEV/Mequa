@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 
 os.environ.setdefault("PYTHON_JULIACALL_THREADS", "auto")
+os.environ.setdefault("PYTHON_JULIACALL_HANDLE_SIGNALS", "yes")
 
 from juliacall import Main as jl
 
