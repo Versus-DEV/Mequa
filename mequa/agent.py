@@ -1,10 +1,11 @@
+import argparse
 import json
-import sys
+import time
 
 import numpy as np
 
-from mequa.firewall import _ollama_chat, check_request, check_reply
-from mequa.julia_bridge import analyze, synthetic_cells
+from mequa import backend as backend_mod
+from mequa.firewall import _ollama_chat, check_reply, check_request
 
 PLANNER_MODEL = "llama3.2:3b"
 
@@ -20,8 +21,15 @@ PLAN_SYSTEM = (
 
 SUMMARY_SYSTEM = (
     "You write short factual summaries of numerical results for researchers. "
-    "Use only the numbers provided. Do not interpret results clinically, give medical advice, "
-    "or refer to individual patients. Write 3 to 4 sentences."
+    "Use only the numbers provided and never invent metrics or definitions. "
+    "Glossary: strain is the dimensionless relative change in length of the mechanical links between neighboring cells. "
+    "SPHI (Systemic Propagating Hazard Index) is the leading eigenvalue of the neighbor graph weighted by the mean strain "
+    "of connected cells; a higher value means strain is both larger and more widely connected. "
+    "Failure probability is a logistic function of cell strain centered on the 90th percentile strain (s_crit); "
+    "it is a simulation output, not a clinical prediction. "
+    "Do not give medical advice or refer to individual patients. Do not use qualitative risk labels such as low, moderate or high; "
+    "state the numbers and compare zones to each other. Write 3 to 5 sentences covering the zones, "
+    "the strain pattern and the SPHI value."
 )
 
 
@@ -45,7 +53,7 @@ def plan_experiment(request, n_cells, history):
             "content": f"Request: {request}\nCells in dataset: {n_cells}\nPrevious attempts: {attempts}",
         },
     ]
-    raw = _ollama_chat(PLANNER_MODEL, messages, fmt="json")
+    raw = _ollama_chat(PLANNER_MODEL, messages, fmt="json", num_predict=120)
     try:
         data = json.loads(raw)
     except ValueError:
@@ -60,64 +68,149 @@ def plan_experiment(request, n_cells, history):
     }
 
 
+def zone_stats(result):
+    labels = result["labels"]
+    strain = result["node_strain"]
+    fail = result["failure_prob"]
+    rows = []
+    for c in sorted(set(int(v) for v in labels)):
+        mask = labels == c
+        rows.append({
+            "zone": c,
+            "cells": int(mask.sum()),
+            "mean_strain": round(float(strain[mask].mean()), 5),
+            "share_high_failure_prob": round(float((fail[mask] > 0.5).mean()), 4),
+        })
+    return rows
+
+
 def critique(result, n_cells):
     issues = []
-    sizes = np.bincount(result["labels"])[1:]
-    if sizes.size and sizes.min() < 0.05 * n_cells:
+    zones = zone_stats(result)
+    sizes = [z["cells"] for z in zones]
+    if sizes and min(sizes) < 0.05 * n_cells:
         issues.append("a zone holds under 5 percent of cells; try fewer zones")
+    if len(sizes) > 2 and max(sizes) > 0.7 * n_cells:
+        issues.append("one zone holds over 70 percent of cells; try more zones")
     if not np.isfinite(result["sphi"]):
         issues.append("SPHI is not finite")
-    return issues, [int(s) for s in sizes]
+    return issues, zones
 
 
-def summarize(request, entry):
+def build_facts(result, plan, n_cells, zones):
+    strain = result["node_strain"]
+    fail = result["failure_prob"]
+    return {
+        "cells": n_cells,
+        "zones": plan["zones"],
+        "neighbors": plan["neighbors"],
+        "load_fraction": plan["load"],
+        "mechanical_links": result["n_edges"],
+        "sphi": round(float(result["sphi"]), 6),
+        "mean_strain": round(float(strain.mean()), 5),
+        "max_strain": round(float(strain.max()), 5),
+        "s_crit": round(float(result["s_crit"]), 5),
+        "share_cells_failure_prob_above_half": round(float((fail > 0.5).mean()), 4),
+        "per_zone": zones,
+    }
+
+
+def summarize(request, facts):
     messages = [
         {"role": "system", "content": SUMMARY_SYSTEM},
-        {
-            "role": "user",
-            "content": f"Request: {request}\nResults: {json.dumps(entry)}",
-        },
+        {"role": "user", "content": f"Request: {request}\nResults: {json.dumps(facts)}"},
     ]
-    return _ollama_chat(PLANNER_MODEL, messages)
+    return _ollama_chat(PLANNER_MODEL, messages, num_predict=260)
 
 
-def run_agent(request, points=None, max_rounds=3):
+def run_agent(request, points=None, max_rounds=3, backend=None):
+    be = backend or backend_mod.load("julia")
+    trace = []
+
+    def step(name, start, detail=""):
+        trace.append({"step": name, "seconds": round(time.perf_counter() - start, 2), "detail": detail})
+
+    t = time.perf_counter()
     verdict = check_request(request)
+    step("firewall.request", t, ",".join(verdict.blocked_by) or "allowed")
     if not verdict.allowed:
-        return {"status": "blocked", "blocked_by": verdict.blocked_by, "categories": verdict.categories}
+        return {
+            "status": "blocked",
+            "blocked_by": verdict.blocked_by,
+            "categories": verdict.categories,
+            "trace": trace,
+            "backend": be.name,
+        }
     if points is None:
-        points = synthetic_cells()
+        points = be.synthetic_cells()
     n_cells = len(points)
     history = []
+    t = time.perf_counter()
     plan = plan_experiment(request, n_cells, history)
+    step("llama.plan", t, json.dumps(plan))
+    facts = None
     for _ in range(max_rounds):
-        result = analyze(points, k=plan["zones"], knn=plan["neighbors"], load=plan["load"])
-        issues, sizes = critique(result, n_cells)
+        t = time.perf_counter()
+        result = be.analyze(points, k=plan["zones"], knn=plan["neighbors"], load=plan["load"])
+        step("solver." + be.name, t, f"zones={plan['zones']} neighbors={plan['neighbors']} load={plan['load']}")
+        issues, zones = critique(result, n_cells)
+        facts = build_facts(result, plan, n_cells, zones)
         history.append({
             "zones": plan["zones"],
             "neighbors": plan["neighbors"],
             "load": plan["load"],
-            "zone_sizes": sizes,
-            "sphi": round(float(result["sphi"]), 6),
+            "zone_sizes": [z["cells"] for z in zones],
+            "sphi": facts["sphi"],
             "issues": issues,
         })
         if not issues:
             break
+        t = time.perf_counter()
         plan = plan_experiment(request, n_cells, history)
-    summary = summarize(request, history[-1])
+        step("llama.replan", t, json.dumps(plan))
+    t = time.perf_counter()
+    summary = summarize(request, facts)
+    step("llama.summary", t)
+    t = time.perf_counter()
     reply_verdict = check_reply(request, summary)
+    step("firewall.reply", t, ",".join(reply_verdict.blocked_by) or "allowed")
     if not reply_verdict.allowed:
-        return {"status": "reply_blocked", "blocked_by": reply_verdict.blocked_by, "history": history}
-    return {"status": "ok", "history": history, "summary": summary, "flags": verdict.flags + reply_verdict.flags}
+        return {
+            "status": "reply_blocked",
+            "blocked_by": reply_verdict.blocked_by,
+            "history": history,
+            "trace": trace,
+            "backend": be.name,
+        }
+    return {
+        "status": "ok",
+        "history": history,
+        "facts": facts,
+        "summary": summary,
+        "trace": trace,
+        "backend": be.name,
+        "result": result,
+    }
 
 
 def main():
-    request = " ".join(sys.argv[1:]) or "Cluster the cells into density zones and report strain risk under a 5 percent load"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("request", nargs="*")
+    parser.add_argument("--points", default=None)
+    parser.add_argument("--backend", choices=["julia", "rust", "numpy"], default="julia")
+    args = parser.parse_args()
+    request = " ".join(args.request) or "Cluster the cells into density zones and report strain risk under a 5 percent load"
+    points = None
+    if args.points:
+        from mequa.ingest import load_points_csv
+
+        points = load_points_csv(args.points)
     try:
-        out = run_agent(request)
+        out = run_agent(request, points=points, backend=backend_mod.load(args.backend))
     except OSError:
         print("Ollama is not reachable. Start it and pull llama3.2:3b and llama-guard3:1b.")
         return
+    out.pop("result", None)
     print(json.dumps(out, indent=2))
 
 

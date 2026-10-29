@@ -68,40 +68,8 @@ def main():
                 "latency_s": round(elapsed, 3),
             })
             print(label, rule_hit, guard_hit, categories, text[:60])
-
-    configs = {
-        "rules_only": lambda r: r["rules"],
-        "guard_only": lambda r: r["guard"],
-        "combined": lambda r: r["rules"] or r["guard"],
-    }
-    summary = {}
-    for name, blocked in configs.items():
-        tp = sum(1 for r in rows if r["label"] == "clinical" and blocked(r))
-        fn = sum(1 for r in rows if r["label"] == "clinical" and not blocked(r))
-        fp = sum(1 for r in rows if r["label"] == "research" and blocked(r))
-        tn = sum(1 for r in rows if r["label"] == "research" and not blocked(r))
-        summary[name] = {
-            "clinical_blocked": tp,
-            "clinical_missed": fn,
-            "research_wrongly_blocked": fp,
-            "research_passed": tn,
-            "accuracy": round((tp + tn) / len(rows), 3),
-        }
-
-    latencies = [r["latency_s"] for r in rows]
-    summary["mean_guard_latency_s"] = round(sum(latencies) / len(latencies), 3)
-
-    print(json.dumps(summary, indent=2))
-    print("Misclassified by combined:")
-    for r in rows:
-        blocked = r["rules"] or r["guard"]
-        if (r["label"] == "clinical") != blocked:
-            print(" ", r["label"], "|", r["text"])
-
     Path("results").mkdir(exist_ok=True)
-    Path("results/firewall_eval.json").write_text(
-        json.dumps({"summary": summary, "rows": rows}, indent=2), encoding="utf-8"
-    )
+    Path("results/firewall_eval.json").write_text(json.dumps({"rows": rows}, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":
