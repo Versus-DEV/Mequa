@@ -1,0 +1,32 @@
+{
+  "round3 (untouched until first run)": {
+    "rules_only": {
+      "clinical_blocked": 2,
+      "clinical_missed": 13,
+      "research_wrongly_blocked": 0,
+      "research_passed": 15,
+      "accuracy": 0.567
+    },
+    "guard_s6_only": {
+      "clinical_blocked": 7,
+      "clinical_missed": 8,
+      "research_wrongly_blocked": 0,
+      "research_passed": 15,
+      "accuracy": 0.733
+    },
+    "intent_only": {
+      "clinical_blocked": 15,
+      "clinical_missed": 0,
+      "research_wrongly_blocked": 0,
+      "research_passed": 15,
+      "accuracy": 1.0
+    },
+    "combined_all_layers": {
+      "clinical_blocked": 15,
+      "clinical_missed": 0,
+      "research_wrongly_blocked": 0,
+      "research_passed": 15,
+      "accuracy": 1.0
+    }
+  }
+}

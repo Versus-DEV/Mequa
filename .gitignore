@@ -1,0 +1,9 @@
+__pycache__/
+.venv/
+*.pyc
+.ipynb_checkpoints/
+.julia/
+.env
+models/
+rust/target/
+results/eval_cache.json

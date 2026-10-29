@@ -1,0 +1,110 @@
+{
+  "machine": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+  "python": "3.14.7",
+  "numpy": "2.5.4",
+  "julia_threads": 8,
+  "rust_threads": 8,
+  "settings": {
+    "zones": 3,
+    "neighbors": 6,
+    "load": 0.05,
+    "repeats": 3,
+    "stat": "best of repeats"
+  },
+  "baseline_note": "NumPy baseline is vectorized with scipy cKDTree for neighbors; the Rust column uses NumPy k-means plus Rust kNN, relaxation and SPHI; speedup below 1 means NumPy was faster.",
+  "rows": [
+    {
+      "cells": 1000,
+      "numpy": {
+        "kmeans": 0.0006144999970274512,
+        "knn": 0.001784899999620393,
+        "relax": 0.4537636000022758,
+        "sphi": 0.003456200000073295,
+        "sphi_value": 0.4836970291768294
+      },
+      "numpy_total_s": 0.4596191999989969,
+      "rust": {
+        "kmeans": 0.0006162999998196028,
+        "knn": 0.0011244000015722122,
+        "relax": 0.04166889999760315,
+        "sphi": 0.0036211000006005634,
+        "sphi_value": 0.4836970291768333
+      },
+      "rust_total_s": 0.04703069999959553,
+      "rust_speedup_vs_numpy": 9.77274843884845,
+      "rust_sphi_relative_difference": 8.148265339000982e-15,
+      "julia": {
+        "kmeans": 0.0007201,
+        "knn": 0.0096627,
+        "relax": 0.0464782,
+        "sphi": 0.0029535,
+        "sphi_value": 0.48369702917683344
+      },
+      "julia_total_s": 0.05981449999999999,
+      "speedup_total": 7.684076603482382,
+      "sphi_relative_difference": 8.377793940099601e-15
+    },
+    {
+      "cells": 5000,
+      "numpy": {
+        "kmeans": 0.0034770000020216685,
+        "knn": 0.010263700001814868,
+        "relax": 2.07578569999896,
+        "sphi": 0.014918900000338908,
+        "sphi_value": 1.076100643214782
+      },
+      "numpy_total_s": 2.1044453000031353,
+      "rust": {
+        "kmeans": 0.003447200000664452,
+        "knn": 0.003204399999958696,
+        "relax": 0.20578680000107852,
+        "sphi": 0.01811470000029658,
+        "sphi_value": 1.0761006432147917
+      },
+      "rust_total_s": 0.23055310000199825,
+      "rust_speedup_vs_numpy": 9.127811770845396,
+      "rust_sphi_relative_difference": 9.079041703305964e-15,
+      "julia": {
+        "kmeans": 0.0012402,
+        "knn": 0.2185717,
+        "relax": 0.2514895,
+        "sphi": 0.0113051,
+        "sphi_value": 1.076100643214791
+      },
+      "julia_total_s": 0.4826065,
+      "speedup_total": 4.360582172024486,
+      "sphi_relative_difference": 8.460016132626012e-15
+    },
+    {
+      "cells": 10000,
+      "numpy": {
+        "kmeans": 0.027022700000088662,
+        "knn": 0.022906099999090657,
+        "relax": 4.206213099998422,
+        "sphi": 0.026607900003000395,
+        "sphi_value": 1.2495496442768024
+      },
+      "numpy_total_s": 4.282749800000602,
+      "rust": {
+        "kmeans": 0.027520999999978812,
+        "knn": 0.005223900003329618,
+        "relax": 0.2749599000017042,
+        "sphi": 0.02156920000197715,
+        "sphi_value": 1.2495496442768175
+      },
+      "rust_total_s": 0.3292740000069898,
+      "rust_speedup_vs_numpy": 13.006644314187236,
+      "rust_sphi_relative_difference": 1.2083580035462253e-14,
+      "julia": {
+        "kmeans": 0.0009658,
+        "knn": 0.7289534,
+        "relax": 0.5214734,
+        "sphi": 0.0247628,
+        "sphi_value": 1.2495496442768181
+      },
+      "julia_total_s": 1.2761554,
+      "speedup_total": 3.3559782766272837,
+      "sphi_relative_difference": 1.2616679154673823e-14
+    }
+  ]
+}
