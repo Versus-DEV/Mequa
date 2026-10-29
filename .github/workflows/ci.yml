@@ -1,0 +1,22 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+      - name: Install Python dependencies
+        run: pip install numpy scipy pandas pillow pytest maturin
+      - name: Build the Rust module
+        working-directory: rust
+        run: |
+          maturin build --release
+          pip install target/wheels/*.whl
+      - name: Run tests
+        run: python -m pytest -q

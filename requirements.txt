@@ -1,0 +1,9 @@
+numpy
+scipy
+pandas
+pillow
+plotly
+streamlit
+juliacall
+segment-anything
+mcp>=1.2,<2
