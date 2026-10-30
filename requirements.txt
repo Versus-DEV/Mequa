@@ -1,3 +1,6 @@
+# CPU PyTorch is installed separately with:
+# python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
 numpy
 scipy
 pandas
@@ -6,4 +9,7 @@ plotly
 streamlit
 juliacall
 segment-anything
+scikit-image
 mcp>=1.2,<2
+psutil
+# Optional, for the MPI sweep: install the MS-MPI runtime and SDK first, then: pip install mpi4py

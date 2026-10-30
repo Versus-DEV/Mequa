@@ -1,13 +1,16 @@
 import argparse
 import json
+import os
 import time
 
 import numpy as np
 
 from mequa import backend as backend_mod
+from mequa.agents.number_grounding import template_summary, ungrounded_numbers
 from mequa.firewall import _ollama_chat, check_reply, check_request
+from mequa.session import ensure_connectivity
 
-PLANNER_MODEL = "llama3.2:3b"
+PLANNER_MODEL = os.environ.get("PLANNER_MODEL", "llama3.2:3b")
 
 PLAN_SYSTEM = (
     "You plan numerical experiments for Mequa, a research workbench that analyzes cell point clouds. "
@@ -94,6 +97,8 @@ def critique(result, n_cells):
         issues.append("one zone holds over 70 percent of cells; try more zones")
     if not np.isfinite(result["sphi"]):
         issues.append("SPHI is not finite")
+    if result.get("load_path") is False:
+        issues.append("the pulled edge is not mechanically connected to the held edge; raise neighbors")
     return issues, zones
 
 
@@ -112,18 +117,44 @@ def build_facts(result, plan, n_cells, zones):
         "s_crit": round(float(result["s_crit"]), 5),
         "share_cells_failure_prob_above_half": round(float((fail > 0.5).mean()), 4),
         "per_zone": zones,
+        "graph_components": result.get("n_components"),
+        "load_path_connected": result.get("load_path"),
     }
 
 
-def summarize(request, facts):
+def summarize(request, facts, feedback=""):
+    note = f"\n{feedback}" if feedback else ""
     messages = [
         {"role": "system", "content": SUMMARY_SYSTEM},
-        {"role": "user", "content": f"Request: {request}\nResults: {json.dumps(facts)}"},
+        {"role": "user", "content": f"Request: {request}\nResults: {json.dumps(facts)}{note}"},
     ]
     return _ollama_chat(PLANNER_MODEL, messages, num_predict=260)
 
 
-def run_agent(request, points=None, max_rounds=3, backend=None):
+def summarize_grounded(request, facts, max_attempts=3, writer=None):
+    """Llama writes the summary; every number in it must trace to the solver facts.
+
+    A summary with an untraceable number is rejected and rewritten with the offending numbers
+    named. After max_attempts the deterministic template is used, so an invented number never
+    reaches the user. Returns (text, info) where info records each attempt for measurement.
+    """
+    writer = writer or summarize
+    zone_ids = [z["zone"] for z in facts.get("per_zone", [])]
+    attempts, feedback = [], ""
+    for i in range(max_attempts):
+        text = writer(request, facts, feedback)
+        bad = ungrounded_numbers(text, facts, zone_ids)
+        attempts.append({"attempt": i + 1, "ungrounded": bad})
+        if not bad:
+            return text, {"attempts": attempts, "fallback": False}
+        feedback = (
+            f"Your previous summary contained numbers that are not in Results: {bad}. "
+            "Rewrite it using only numbers that appear in Results."
+        )
+    return template_summary(facts), {"attempts": attempts, "fallback": True}
+
+
+def run_agent(request, points=None, max_rounds=3, backend=None, stiffness=None):
     be = backend or backend_mod.load("julia")
     trace = []
 
@@ -151,8 +182,9 @@ def run_agent(request, points=None, max_rounds=3, backend=None):
     facts = None
     for _ in range(max_rounds):
         t = time.perf_counter()
-        result = be.analyze(points, k=plan["zones"], knn=plan["neighbors"], load=plan["load"])
-        step("solver." + be.name, t, f"zones={plan['zones']} neighbors={plan['neighbors']} load={plan['load']}")
+        result = backend_mod.analyze_routed(be, points, k=plan["zones"], knn=plan["neighbors"], load=plan["load"], stiffness=stiffness)
+        ensure_connectivity(result, points, plan["neighbors"])
+        step("solver." + result["backend_used"], t, f"zones={plan['zones']} neighbors={plan['neighbors']} load={plan['load']}")
         issues, zones = critique(result, n_cells)
         facts = build_facts(result, plan, n_cells, zones)
         history.append({
@@ -169,8 +201,8 @@ def run_agent(request, points=None, max_rounds=3, backend=None):
         plan = plan_experiment(request, n_cells, history)
         step("llama.replan", t, json.dumps(plan))
     t = time.perf_counter()
-    summary = summarize(request, facts)
-    step("llama.summary", t)
+    summary, grounding = summarize_grounded(request, facts)
+    step("llama.summary", t, f"attempts={len(grounding['attempts'])} fallback={grounding['fallback']}")
     t = time.perf_counter()
     reply_verdict = check_reply(request, summary)
     step("firewall.reply", t, ",".join(reply_verdict.blocked_by) or "allowed")
@@ -187,6 +219,7 @@ def run_agent(request, points=None, max_rounds=3, backend=None):
         "history": history,
         "facts": facts,
         "summary": summary,
+        "grounding": grounding,
         "trace": trace,
         "backend": be.name,
         "result": result,

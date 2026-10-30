@@ -1,9 +1,41 @@
+# Python
 __pycache__/
+*.py[cod]
+*.egg-info/
 .venv/
-*.pyc
+venv/
 .ipynb_checkpoints/
+.pytest_cache/
+
+# Julia and Rust build products (these are large)
 .julia/
-.env
-models/
 rust/target/
+*.so
+*.pyd
+*.dll
+
+# Local environment
+.env
+.env.local
+
+# Model weights and large files
+models/
+*.pth
+*.pt
+*.bin
+*.safetensors
+
+# Large or regenerated outputs
+outputs/sam/masks.npy
+outputs/sam_run/masks.npy
+outputs/solver/strain_map.npy
 results/eval_cache.json
+results/_mpi_*.json
+
+# Raw research data (license-check before adding anything)
+data/raw/
+
+# Logs and OS files
+logs/*.log
+.DS_Store
+Thumbs.db

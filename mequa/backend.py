@@ -116,3 +116,32 @@ def load(mode="julia"):
     from mequa import numpy_backend
 
     return _Wrapper(numpy_backend, "numpy")
+
+
+def analyze_routed(be, points, k=3, knn=6, load=0.05, stiffness=None):
+    """Run an analysis on the requested backend when it supports the job, otherwise on NumPy.
+
+    The Julia and Rust kernels currently handle 2D points with uniform stiffness. Jobs with
+    per-cell stiffness (SAM-driven mechanics) or 3D points run on the NumPy backend. The result
+    always names the backend that actually ran, so nothing is attributed to the wrong solver.
+    """
+    from mequa import numpy_backend
+
+    points = np.asarray(points)
+    needs_numpy = stiffness is not None or points.shape[1] != 2
+    if needs_numpy and be.name != "numpy":
+        res = numpy_backend.analyze(points, k=k, knn=knn, load=load, stiffness=stiffness)
+        res["backend_used"] = "numpy"
+        res["routed_from"] = be.name
+        return res
+    res = be.analyze(points, k=k, knn=knn, load=load) if stiffness is None else be.analyze(points, k=k, knn=knn, load=load, stiffness=stiffness)
+    res["backend_used"] = be.name
+    return res
+
+
+def synthetic_any(be, n=2000, seed=1, clusters=3, dim=2):
+    if dim == 2:
+        return be.synthetic_cells(n, seed=seed, clusters=clusters)
+    from mequa import numpy_backend
+
+    return numpy_backend.synthetic_cells(n, seed=seed, clusters=clusters, dim=dim)

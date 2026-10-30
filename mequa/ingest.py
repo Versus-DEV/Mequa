@@ -17,14 +17,54 @@ def load_image(path, max_side=768):
     return np.array(img)
 
 
-def load_points_csv(path):
-    data = np.loadtxt(path, delimiter=",", skiprows=1)
-    return np.ascontiguousarray(data[:, :2], dtype=np.float64)
+def load_cells_csv(path):
+    """Read cell centers from a CSV with header x,y or x,y,z and an optional area column.
+
+    Returns (points, areas); areas is None when the file has no area column.
+    """
+    import pandas as pd
+
+    df = pd.read_csv(path)
+    cols = {c.strip().lower(): c for c in df.columns}
+    if "x" not in cols or "y" not in cols:
+        raise ValueError("CSV needs columns named x and y (and optionally z, area)")
+    axes = [cols["x"], cols["y"]] + ([cols["z"]] if "z" in cols else [])
+    pts = np.ascontiguousarray(df[axes].to_numpy(dtype=np.float64))
+    areas = df[cols["area"]].to_numpy(dtype=np.float64) if "area" in cols else None
+    return pts, areas
 
 
-def save_points_csv(points, path):
+def load_cells_full(path):
+    """Like load_cells_csv but also returns a per-cell stiffness column when present:
+    (points, areas_or_None, stiffness_or_None)."""
+    import pandas as pd
+
+    pts, areas = load_cells_csv(path)
+    df = pd.read_csv(path)
+    cols = {c.strip().lower(): c for c in df.columns}
+    stiff = df[cols["stiffness"]].to_numpy(dtype=np.float64) if "stiffness" in cols else None
+    return pts, areas, stiff
+
+
+def save_cells_csv(path, cellset):
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    np.savetxt(path, points, delimiter=",", header="x,y", comments="", fmt="%.4f")
+    data = np.column_stack([cellset.points, cellset.areas, cellset.stiffness])
+    np.savetxt(path, data, delimiter=",", header="x,y,area,stiffness", comments="", fmt="%.6f")
+
+
+def load_points_csv(path):
+    return load_cells_csv(path)[0]
+
+
+def save_points_csv(points, path, areas=None):
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    points = np.asarray(points)
+    header = ",".join(["x", "y", "z"][: points.shape[1]])
+    data = points
+    if areas is not None:
+        data = np.column_stack([points, np.asarray(areas)])
+        header += ",area"
+    np.savetxt(path, data, delimiter=",", header=header, comments="", fmt="%.4f")
 
 
 def otsu_threshold(gray):
@@ -41,7 +81,29 @@ def otsu_threshold(gray):
     return centers[int(between.argmax())]
 
 
-def segment_classical(image, min_area=20):
+def split_touching(fg, min_distance=6):
+    """Split touching blobs with a distance-transform watershed (scikit-image).
+
+    Seeds are the peaks of the smoothed distance map, at least min_distance pixels apart and found
+    separately inside each connected blob, so a small cell next to a large one keeps its own seed.
+    Returns an integer label image. Elongated cells can still be over-split, so check the count
+    against ground truth when you have it (mequa.eval_segmentation).
+    """
+    from scipy import ndimage as ndi
+    from skimage.feature import peak_local_max
+    from skimage.segmentation import watershed
+
+    dist = ndi.distance_transform_edt(fg)
+    comp, _ = ndi.label(fg)
+    peaks = peak_local_max(ndi.gaussian_filter(dist, 0.7), min_distance=int(min_distance), labels=comp, exclude_border=False)
+    if len(peaks) == 0:
+        return comp
+    markers = np.zeros(fg.shape, np.int32)
+    markers[tuple(peaks.T)] = np.arange(1, len(peaks) + 1)
+    return watershed(-dist, markers, mask=fg)
+
+
+def segment_classical(image, min_area=20, split=False, min_distance=6):
     from scipy import ndimage as ndi
 
     gray = ndi.gaussian_filter(image.mean(axis=2), 1.5)
@@ -49,7 +111,12 @@ def segment_classical(image, min_area=20):
     if fg.mean() > 0.5:
         fg = ~fg
     fg = ndi.binary_opening(fg, iterations=1)
-    labeled, count = ndi.label(fg)
+    if split:
+        labeled = split_touching(fg, min_distance=min_distance)
+        count = int(labeled.max())
+        fg = labeled > 0
+    else:
+        labeled, count = ndi.label(fg)
     if count == 0:
         return np.zeros((0, 2)), np.zeros(0)
     index = np.arange(1, count + 1)
@@ -131,6 +198,113 @@ def segment(image, method="classical", **kwargs):
     h = image.shape[0]
     pts = np.column_stack([cents[:, 0], h - cents[:, 1]]) if len(cents) else np.zeros((0, 2))
     return pts, areas
+
+
+def link_slices(slice_points, slice_areas, z_spacing=1.0, max_dist=6.0):
+    """Turn per-slice cell detections from a z-stack into 3D cell centers.
+
+    A cell cut by several adjacent slices shows up as one detection per slice. Detections in
+    consecutive slices closer than max_dist (in pixels) are merged into one track. A track's
+    x, y is its area-weighted mean, z is the area-weighted slice position times z_spacing, and
+    its area is the largest cross-section seen. Greedy nearest-neighbor matching: simple and
+    deterministic, but it can merge touching cells, so max_dist should be below a cell diameter.
+    """
+    from scipy.spatial import cKDTree
+
+    tracks = []  # each: dict(sum_w, sum_xw, sum_yw, sum_zw, max_area, last_xy, last_slice)
+    open_ids = []
+    for zi, (pts, areas) in enumerate(zip(slice_points, slice_areas)):
+        pts = np.asarray(pts, dtype=float).reshape(-1, 2)
+        areas = np.asarray(areas, dtype=float)
+        used = set()
+        next_open = []
+        if len(pts) and open_ids:
+            prev_xy = np.array([tracks[t]["last_xy"] for t in open_ids])
+            tree = cKDTree(prev_xy)
+            dist, idx = tree.query(pts, k=1)
+            order = np.argsort(dist)
+            for i in order:
+                if dist[i] > max_dist:
+                    break
+                t = open_ids[idx[i]]
+                if t in used:
+                    continue
+                used.add(t)
+                _extend(tracks[t], pts[i], areas[i], zi)
+                next_open.append(t)
+                dist[i] = np.inf
+            matched = {i for i in range(len(pts)) if dist[i] == np.inf}
+        else:
+            matched = set()
+        for i in range(len(pts)):
+            if i in matched:
+                continue
+            tracks.append(_new_track(pts[i], areas[i], zi))
+            next_open.append(len(tracks) - 1)
+        open_ids = next_open
+    if not tracks:
+        return np.zeros((0, 3)), np.zeros(0)
+    cents = np.array([[t["sx"] / t["sw"], t["sy"] / t["sw"], z_spacing * t["sz"] / t["sw"]] for t in tracks])
+    return cents, np.array([t["max_area"] for t in tracks])
+
+
+def _new_track(xy, area, zi):
+    w = max(float(area), 1e-9)
+    return {"sw": w, "sx": xy[0] * w, "sy": xy[1] * w, "sz": zi * w, "max_area": float(area), "last_xy": (xy[0], xy[1])}
+
+
+def _extend(track, xy, area, zi):
+    w = max(float(area), 1e-9)
+    track["sw"] += w
+    track["sx"] += xy[0] * w
+    track["sy"] += xy[1] * w
+    track["sz"] += zi * w
+    track["max_area"] = max(track["max_area"], float(area))
+    track["last_xy"] = (xy[0], xy[1])
+
+
+def segment_stack(images, method="classical", z_spacing=1.0, max_dist=6.0, split=False, min_distance=6, **kwargs):
+    """Segment every slice (SAM or classical) and link detections into 3D cell centers.
+
+    Returns (points (n, 3), areas (n,)). Each slice is segmented independently; y is flipped
+    to match the 2D convention used elsewhere (origin at the bottom left).
+    """
+    slice_pts, slice_areas = [], []
+    for img in images:
+        if method == "sam":
+            cents, areas = segment_sam(img, **kwargs)
+        else:
+            cents, areas = segment_classical(img, split=split, min_distance=min_distance)
+        slice_pts.append(cents)
+        slice_areas.append(areas)
+    pts3, areas3 = link_slices(slice_pts, slice_areas, z_spacing=z_spacing, max_dist=max_dist)
+    if len(pts3):
+        pts3[:, 1] = images[0].shape[0] - pts3[:, 1]
+    return pts3, areas3
+
+
+def make_demo_stack(n_cells=60, n_slices=12, size=256, radius=9.0, z_step=3.0, seed=5):
+    """Synthetic z-stack of bright-on-light spheres, for tests and offline demos. Returns
+    (images, truth) where truth is an (n, 3) array of sphere centers in (x, y, slice-units)."""
+    rng = np.random.default_rng(seed)
+    truth = []
+    while len(truth) < n_cells:
+        c = np.array([rng.uniform(20, size - 20), rng.uniform(20, size - 20), rng.uniform(1, n_slices - 2) * z_step])
+        if all(np.linalg.norm(c - t) > 2.2 * radius for t in truth):
+            truth.append(c)
+    truth = np.array(truth)
+    yy, xx = np.mgrid[0:size, 0:size]
+    images = []
+    for s in range(n_slices):
+        z = s * z_step
+        canvas = np.full((size, size, 3), 235.0)
+        for cx, cy, cz in truth:
+            r2 = radius**2 - (z - cz) ** 2
+            if r2 > 4:
+                canvas[(xx - cx) ** 2 + (yy - cy) ** 2 <= r2] = (60, 40, 120)
+        images.append(np.clip(canvas + rng.normal(0, 3, canvas.shape), 0, 255).astype(np.uint8))
+    truth[:, 2] /= z_step
+    return images, truth
 
 
 def make_demo_image(path, n=400, seed=3, size=640):

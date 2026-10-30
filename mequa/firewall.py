@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import urllib.request
 from dataclasses import dataclass, field
@@ -49,7 +50,17 @@ class Verdict:
     degraded: bool = False
 
 
-def _ollama_chat(model, messages, timeout=300, fmt=None, num_predict=None):
+def _chat_url(node):
+    """Main-node calls go to OLLAMA_MAIN_URL, guard-node calls (Llama Guard and the intent
+    classifier) to OLLAMA_GUARD_URL. Both default to this machine, so a single laptop still works."""
+    if node == "guard":
+        base = os.environ.get("OLLAMA_GUARD_URL") or os.environ.get("OLLAMA_MAIN_URL")
+    else:
+        base = os.environ.get("OLLAMA_MAIN_URL")
+    return (base or "http://localhost:11434").rstrip("/") + "/api/chat"
+
+
+def _ollama_chat(model, messages, timeout=300, fmt=None, num_predict=None, node="main"):
     options = {"temperature": 0}
     if num_predict:
         options["num_predict"] = num_predict
@@ -63,7 +74,7 @@ def _ollama_chat(model, messages, timeout=300, fmt=None, num_predict=None):
     if fmt:
         payload["format"] = fmt
     req = urllib.request.Request(
-        OLLAMA_CHAT_URL,
+        _chat_url(node),
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
     )
@@ -82,7 +93,7 @@ def guard_check(text, reply=None):
     messages = [{"role": "user", "content": text}]
     if reply is not None:
         messages.append({"role": "assistant", "content": reply})
-    raw = _ollama_chat(GUARD_MODEL, messages)
+    raw = _ollama_chat(GUARD_MODEL, messages, node="guard")
     first = raw.split()[0].lower() if raw else ""
     categories = re.findall(r"S\d+", raw)
     return first == "unsafe", categories, raw
@@ -94,7 +105,7 @@ def intent_check(text):
         messages.append({"role": "user", "content": shot})
         messages.append({"role": "assistant", "content": json.dumps({"label": label})})
     messages.append({"role": "user", "content": text})
-    raw = _ollama_chat(INTENT_MODEL, messages, fmt="json", num_predict=30)
+    raw = _ollama_chat(INTENT_MODEL, messages, fmt="json", num_predict=30, node="guard")
     try:
         data = json.loads(raw)
     except ValueError:

@@ -6,7 +6,7 @@ from mequa import agent, firewall
 from mequa import numpy_backend as nb
 
 
-def fake_chat(model, messages, timeout=300, fmt=None, num_predict=None):
+def fake_chat(model, messages, timeout=300, fmt=None, num_predict=None, node="main"):
     last = messages[-1]["content"].lower()
     if model == firewall.GUARD_MODEL:
         if "treat" in last:
