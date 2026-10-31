@@ -18,10 +18,11 @@ from mequa.guard.remote_guard import list_models
 from mequa.utils.env import load_env_file
 
 
+from mequa import ui  # noqa: E402
+
 load_env_file()
 
-st.title("Two-Machine Status")
-st.caption("Local network only. Do not expose Ollama to the internet.")
+ui.page_header('Two-Machine Status', 'Local network only. Do not expose Ollama to the internet.')
 
 main_url = os.getenv("OLLAMA_MAIN_URL", "http://127.0.0.1:11434")
 guard_url = os.getenv("OLLAMA_GUARD_URL", "")
@@ -29,7 +30,7 @@ guard_url = os.getenv("OLLAMA_GUARD_URL", "")
 st.write(f"Main URL: `{main_url}`")
 st.write(f"Guard URL: `{guard_url or 'not set'}`")
 
-if st.button("Check nodes", type="primary"):
+if st.button("Check Nodes", type="primary"):
     nodes = [
         ("MAIN", main_url),
         ("GUARD", guard_url),

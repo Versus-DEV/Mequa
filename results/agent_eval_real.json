@@ -1,0 +1,202 @@
+{
+  "config": {
+    "cells": 600,
+    "knn": 8,
+    "strain_limit": 0.05,
+    "seeds": [
+      1,
+      2,
+      3
+    ],
+    "phrasings": 3,
+    "dry_run": false,
+    "note": "temperature 0: variety comes from seeds and phrasings, not repeats"
+  },
+  "summary": {
+    "llama3.2:3b": {
+      "runs": 3,
+      "completed": 1.0,
+      "called_sweep": 1.0,
+      "forced_sweep_rate": 0.0,
+      "threshold_correct": 1.0,
+      "threshold_correct_model_initiated": 1.0,
+      "threshold_in_final_summary": 1.0,
+      "tool_error_rate": 0.0,
+      "first_attempt_invented_number_rate": 0.0,
+      "template_fallback_rate": 0.0,
+      "median_threshold_error": 0.00018,
+      "median_iterations": 2.0,
+      "median_seconds": 31.8,
+      "tolerance": 0.005
+    },
+    "llama3.1:latest": {
+      "runs": 3,
+      "completed": 1.0,
+      "called_sweep": 0.667,
+      "forced_sweep_rate": 0.333,
+      "threshold_correct": 1.0,
+      "threshold_correct_model_initiated": 0.667,
+      "threshold_in_final_summary": 0.667,
+      "tool_error_rate": 0.0,
+      "first_attempt_invented_number_rate": 0.0,
+      "template_fallback_rate": 0.0,
+      "median_threshold_error": 0.00055,
+      "median_iterations": 2.0,
+      "median_seconds": 55.1,
+      "tolerance": 0.005
+    }
+  },
+  "rows": [
+    {
+      "status": "ok",
+      "tool_calls": 1,
+      "tool_errors": 0,
+      "called_sweep": true,
+      "forced_sweep": false,
+      "diagnostics": null,
+      "iterations": 2,
+      "seconds": 52.3,
+      "truth_threshold": 0.059605,
+      "tool_threshold": 0.05943,
+      "threshold_error": 0.00018,
+      "threshold_correct": true,
+      "threshold_correct_model_initiated": true,
+      "threshold_in_summary": true,
+      "first_attempt_ungrounded": false,
+      "template_fallback": false,
+      "model": "llama3.2:3b",
+      "mesh": "real:real3d_points.csv",
+      "phrasing": 0
+    },
+    {
+      "status": "ok",
+      "tool_calls": 1,
+      "tool_errors": 0,
+      "called_sweep": true,
+      "forced_sweep": false,
+      "diagnostics": null,
+      "iterations": 2,
+      "seconds": 31.8,
+      "truth_threshold": 0.059605,
+      "tool_threshold": 0.05943,
+      "threshold_error": 0.00018,
+      "threshold_correct": true,
+      "threshold_correct_model_initiated": true,
+      "threshold_in_summary": true,
+      "first_attempt_ungrounded": false,
+      "template_fallback": false,
+      "model": "llama3.2:3b",
+      "mesh": "real:real3d_points.csv",
+      "phrasing": 1
+    },
+    {
+      "status": "ok",
+      "tool_calls": 1,
+      "tool_errors": 0,
+      "called_sweep": true,
+      "forced_sweep": false,
+      "diagnostics": null,
+      "iterations": 2,
+      "seconds": 29.8,
+      "truth_threshold": 0.059605,
+      "tool_threshold": 0.05943,
+      "threshold_error": 0.00018,
+      "threshold_correct": true,
+      "threshold_correct_model_initiated": true,
+      "threshold_in_summary": true,
+      "first_attempt_ungrounded": false,
+      "template_fallback": false,
+      "model": "llama3.2:3b",
+      "mesh": "real:real3d_points.csv",
+      "phrasing": 2
+    },
+    {
+      "status": "ok",
+      "tool_calls": 3,
+      "tool_errors": 0,
+      "called_sweep": false,
+      "forced_sweep": true,
+      "diagnostics": [
+        {
+          "iteration": 1,
+          "event": "no tool call",
+          "content": "{\"name\": \"sweep_load\", \"parameters\": {\"start\": \"0.005\", \"steps\": \"10\", \"stop\": \"0.2}}"
+        },
+        {
+          "iteration": 2,
+          "event": "no tool call",
+          "content": "{\"name\": \"run_solver\", \"parameters\": {\"load_fraction\": \"0.1\", \"neighbors\": \"6\", \"zones\": \"4}}"
+        },
+        {
+          "iteration": 4,
+          "event": "no tool call",
+          "content": "The 95th percentile strain reaches the strain limit (0.004) at a load fraction of 0.05."
+        },
+        {
+          "iteration": 4,
+          "event": "model ignored the sweep request twice; a default sweep was run for it"
+        },
+        {
+          "iteration": 5,
+          "event": "no tool call",
+          "content": "The 95th percentile strain reaches the strain limit at a load fraction of 0.0594."
+        }
+      ],
+      "iterations": 5,
+      "seconds": 182.1,
+      "truth_threshold": 0.059605,
+      "tool_threshold": 0.059403,
+      "threshold_error": 0.0002,
+      "threshold_correct": true,
+      "threshold_correct_model_initiated": false,
+      "threshold_in_summary": true,
+      "first_attempt_ungrounded": false,
+      "template_fallback": false,
+      "model": "llama3.1:latest",
+      "mesh": "real:real3d_points.csv",
+      "phrasing": 0
+    },
+    {
+      "status": "ok",
+      "tool_calls": 1,
+      "tool_errors": 0,
+      "called_sweep": true,
+      "forced_sweep": false,
+      "diagnostics": null,
+      "iterations": 2,
+      "seconds": 55.1,
+      "truth_threshold": 0.059605,
+      "tool_threshold": 0.059039,
+      "threshold_error": 0.00057,
+      "threshold_correct": true,
+      "threshold_correct_model_initiated": true,
+      "threshold_in_summary": true,
+      "first_attempt_ungrounded": false,
+      "template_fallback": false,
+      "model": "llama3.1:latest",
+      "mesh": "real:real3d_points.csv",
+      "phrasing": 1
+    },
+    {
+      "status": "ok",
+      "tool_calls": 1,
+      "tool_errors": 0,
+      "called_sweep": true,
+      "forced_sweep": false,
+      "diagnostics": null,
+      "iterations": 2,
+      "seconds": 53.7,
+      "truth_threshold": 0.059605,
+      "tool_threshold": 0.059053,
+      "threshold_error": 0.00055,
+      "threshold_correct": true,
+      "threshold_correct_model_initiated": true,
+      "threshold_in_summary": false,
+      "first_attempt_ungrounded": false,
+      "template_fallback": false,
+      "model": "llama3.1:latest",
+      "mesh": "real:real3d_points.csv",
+      "phrasing": 2
+    }
+  ]
+}

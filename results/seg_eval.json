@@ -1,0 +1,38 @@
+{
+  "radius_px": 6.0,
+  "results": [
+    {
+      "method": "ground_truth",
+      "instances": 110,
+      "image": "IXMtest_A02_s1_w1051DAA7C-7042-435F-99F0-1E847D9B42CB.tif"
+    },
+    {
+      "method": "classical",
+      "seconds": 0.03,
+      "detected": 87,
+      "ground_truth": 110,
+      "tp": 79,
+      "fp": 8,
+      "fn": 31,
+      "precision": 0.908,
+      "recall": 0.7182,
+      "f1": 0.802,
+      "count_error_pct": -20.9,
+      "median_center_error_px": 0.42
+    },
+    {
+      "method": "classical_split",
+      "seconds": 0.14,
+      "detected": 103,
+      "ground_truth": 110,
+      "tp": 95,
+      "fp": 8,
+      "fn": 15,
+      "precision": 0.9223,
+      "recall": 0.8636,
+      "f1": 0.892,
+      "count_error_pct": -6.4,
+      "median_center_error_px": 0.469
+    }
+  ]
+}

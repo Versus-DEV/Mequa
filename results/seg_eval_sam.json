@@ -1,0 +1,61 @@
+{
+  "radius_px": 6.0,
+  "results": [
+    {
+      "method": "ground_truth",
+      "instances": 110,
+      "image": "IXMtest_A02_s1_w1051DAA7C-7042-435F-99F0-1E847D9B42CB.tif"
+    },
+    {
+      "method": "sam_grid16",
+      "seconds": 32.5,
+      "masks": 95,
+      "background_dropped": 1,
+      "overlap_dropped": 18,
+      "detected": 76,
+      "ground_truth": 110,
+      "tp": 75,
+      "fp": 1,
+      "fn": 35,
+      "precision": 0.9868,
+      "recall": 0.6818,
+      "f1": 0.8065,
+      "count_error_pct": -30.9,
+      "median_center_error_px": 0.297
+    },
+    {
+      "method": "sam_grid24",
+      "seconds": 61.6,
+      "masks": 127,
+      "background_dropped": 1,
+      "overlap_dropped": 24,
+      "detected": 102,
+      "ground_truth": 110,
+      "tp": 102,
+      "fp": 0,
+      "fn": 8,
+      "precision": 1.0,
+      "recall": 0.9273,
+      "f1": 0.9623,
+      "count_error_pct": -7.3,
+      "median_center_error_px": 0.317
+    },
+    {
+      "method": "sam_grid32",
+      "seconds": 121.2,
+      "masks": 136,
+      "background_dropped": 1,
+      "overlap_dropped": 31,
+      "detected": 104,
+      "ground_truth": 110,
+      "tp": 104,
+      "fp": 0,
+      "fn": 6,
+      "precision": 1.0,
+      "recall": 0.9455,
+      "f1": 0.972,
+      "count_error_pct": -5.5,
+      "median_center_error_px": 0.317
+    }
+  ]
+}

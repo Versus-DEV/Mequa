@@ -11,12 +11,16 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         with:
           version: "1"
+      - name: Install MPI
+        run: sudo apt-get update && sudo apt-get install -y openmpi-bin libopenmpi-dev
       - name: Install Python dependencies
-        run: pip install numpy scipy pandas pillow pytest maturin
+        run: pip install numpy scipy pandas pillow pytest maturin mpi4py
       - name: Build the Rust module
         working-directory: rust
         run: |
           maturin build --release
           pip install target/wheels/*.whl
+      - name: Julia 3D kernel parity with NumPy
+        run: julia solvers/test_3d.jl
       - name: Run tests
         run: python -m pytest -q

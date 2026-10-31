@@ -17,7 +17,11 @@ def as_f64_matrix(data):
 def analyze(points, k=3, knn=6, load=0.05):
     pts = as_f64_matrix(points)
     labels, centroids = nb.kmeans_zones(pts, k)
-    ei, ej = mequa_rs.knn_edges(pts, knn)
+    if pts.shape[1] == 3:
+        ei, ej = nb.build_knn_edges(pts, knn)  # the Rust neighbour search is 2D only; the 3D relaxation kernel is Rust
+        ei, ej = np.ascontiguousarray(ei, dtype=np.int64), np.ascontiguousarray(ej, dtype=np.int64)
+    else:
+        ei, ej = mequa_rs.knn_edges(pts, knn)
     pos, node_strain, _ = mequa_rs.relax_strain(pts, ei, ej, load, 0.1, 1500, 0.05)
     index = mequa_rs.sphi(node_strain, ei, ej)
     ordered = np.sort(node_strain)

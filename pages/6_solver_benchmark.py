@@ -13,8 +13,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-st.title("Benchmarks and MPI scaling")
-st.caption("Nothing here is computed in the page. It shows result files written by the measurement scripts, with the machine that produced them.")
+from mequa import ui
+
+ui.page_header('Benchmarks and MPI Scaling', 'Nothing here is computed in the page. It shows result files written by the measurement scripts, with the machine that produced them.')
 
 bench = ROOT / "results" / "benchmark.json"
 st.subheader("Julia, Rust and NumPy on identical points")

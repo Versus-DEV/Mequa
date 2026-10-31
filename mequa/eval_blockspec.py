@@ -24,8 +24,9 @@ from typing import Any, Callable, Dict, List
 import numpy as np
 
 T_END = 10.0
-REL_TOL = 0.02       # relative tolerance on final values
-OVERSHOOT_TOL = 0.03  # absolute tolerance on overshoot fraction
+REL_TOL = 0.02       # relative tolerance on final values (reported, no longer decisive)
+OVERSHOOT_TOL = 0.03  # absolute tolerance on overshoot fraction (reported, no longer decisive)
+CURVE_TOL = 0.03     # decisive: max |y - y_analytic| / max |y_analytic| over the whole step response
 
 
 def build_cases() -> List[Dict[str, Any]]:
@@ -34,21 +35,37 @@ def build_cases() -> List[Dict[str, Any]]:
         cases.append({
             "kind": "first_order",
             "prompt": f"A first-order system with DC gain {K} and time constant {tau} seconds, driven by a unit step.",
+            "K": K, "tau": tau,
             "expected_final": K * (1 - math.exp(-T_END / tau)),
         })
     for h, g, tau in [(2.0, 3.0, 1.0), (1.5, 0.5, 2.0), (5.0, 2.0, 0.7)]:
         cases.append({
             "kind": "gain_lag",
             "prompt": f"A step input of height {h} goes into a gain of {g}, followed by a first-order lag with time constant {tau} seconds and unit DC gain.",
+            "h": h, "g": g, "tau": tau,
             "expected_final": g * h * (1 - math.exp(-T_END / tau)),
         })
     for wn, zeta in [(2.0, 0.3), (3.0, 0.5), (1.5, 0.2), (4.0, 0.6)]:
         cases.append({
             "kind": "second_order",
             "prompt": f"A second-order system with natural frequency {wn} rad/s and damping ratio {zeta}, unit DC gain, driven by a unit step.",
+            "wn": wn, "zeta": zeta,
             "expected_overshoot": math.exp(-math.pi * zeta / math.sqrt(1 - zeta ** 2)),
         })
     return cases
+
+
+def expected_curve(case: Dict[str, Any], t) -> np.ndarray:
+    t = np.asarray(t, dtype=float)
+    if case["kind"] == "first_order":
+        return case["K"] * (1 - np.exp(-t / case["tau"]))
+    if case["kind"] == "gain_lag":
+        return case["g"] * case["h"] * (1 - np.exp(-t / case["tau"]))
+    from scipy import signal
+
+    wn, z = case["wn"], case["zeta"]
+    _, y = signal.step(([wn ** 2], [1.0, 2 * z * wn, wn ** 2]), T=t)
+    return np.asarray(y)
 
 
 def check_case(case: Dict[str, Any], spec: Dict[str, Any], points, backend) -> Dict[str, Any]:
@@ -69,15 +86,14 @@ def check_case(case: Dict[str, Any], spec: Dict[str, Any], points, backend) -> D
         return {"stages": stages, "detail": detail}
     stages["simulated"] = True
     t, y = np.asarray(sim["time"]), np.asarray(sim["output"])
+    y_exp = expected_curve(case, t)
+    curve_err = float(np.max(np.abs(y - y_exp)) / max(float(np.max(np.abs(y_exp))), 1e-12))
+    detail.update({"curve_error": round(curve_err, 4), "final": round(float(y[-1]), 4), "expected_final": round(float(y_exp[-1]), 4)})
     if case["kind"] == "second_order":
         final = float(y[-1])
         measured = (float(y.max()) / final - 1.0) if abs(final) > 1e-9 else float("nan")
         detail.update({"measured_overshoot": round(measured, 4), "expected_overshoot": round(case["expected_overshoot"], 4)})
-        stages["matches_maths"] = bool(abs(measured - case["expected_overshoot"]) <= OVERSHOOT_TOL)
-    else:
-        exp = case["expected_final"]
-        detail.update({"final": round(float(y[-1]), 4), "expected_final": round(exp, 4)})
-        stages["matches_maths"] = bool(abs(y[-1] - exp) <= REL_TOL * abs(exp))
+    stages["matches_maths"] = bool(curve_err <= CURVE_TOL)
     if np.ptp(y) > 1e-9:
         rows = drive_strain(t, y, points, backend, samples=6)
         strains = [r["mean_strain"] for r in rows]
@@ -98,10 +114,14 @@ def run_model(model, translate_fn: Callable, points, backend, log=print) -> List
         else:
             res = check_case(case, out["block_spec"], points, backend)
             res["stages"] = {"json": True, **res["stages"]}
-        res.update({"model": model, "kind": case["kind"], "prompt": case["prompt"], "seconds": secs})
+        res.update({"model": model, "kind": case["kind"], "prompt": case["prompt"], "seconds": secs,
+                    "spec": out.get("block_spec"), "attempts": out.get("attempts")})
         rows.append(res)
         s = res["stages"]
         log(f"[{model}] {case['kind']:<12} json={s['json']} valid={s['valid']} sim={s['simulated']} maths={s['matches_maths']} coupled={s['coupled']} {secs}s")
+    for r in rows:
+        if not r["stages"].get("matches_maths") or not r["stages"].get("coupled"):
+            log(f"  CHECK [{r['model']}] {r['kind']}: {r['prompt'][:60]} -> {r['stages']} {r['detail']}")
     return rows
 
 
@@ -164,7 +184,13 @@ def main(argv=None):
         print(json.dumps({m: summary[m]}, indent=2))
     if not args.dry_run:
         Path(args.out).parent.mkdir(exist_ok=True)
-        Path(args.out).write_text(json.dumps({"summary": summary, "rows": all_rows}, indent=2), encoding="utf-8")
+        merged_summary, merged_rows = summary, all_rows
+        old = Path(args.out)
+        if old.exists():
+            prev = json.loads(old.read_text(encoding="utf-8"))
+            merged_summary = {**prev.get("summary", {}), **summary}
+            merged_rows = [r for r in prev.get("rows", []) if r.get("model") not in summary] + all_rows
+        Path(args.out).write_text(json.dumps({"summary": merged_summary, "rows": merged_rows}, indent=2), encoding="utf-8")
         print("saved", args.out)
     return summary
 

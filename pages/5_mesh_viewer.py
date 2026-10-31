@@ -21,9 +21,10 @@ from mequa import numpy_backend as nb
 from mequa.session import Session
 from mequa.utils.env import load_env_file
 
+from mequa import ui  # noqa: E402
+
 load_env_file()
-st.title("Cell viewer: 2D and 3D")
-st.caption("The 3D path runs on the NumPy spring-network backend. Julia and Rust handle 2D uniform jobs (see the benchmark page).")
+ui.page_header('Cell Viewer', '2D and 3D. The 3D path runs on the NumPy spring-network backend; Julia and Rust handle 2D uniform jobs.')
 
 
 @st.cache_resource
@@ -48,9 +49,9 @@ with st.sidebar:
     k = st.slider("Density zones", 2, 8, 3)
     knn = st.slider("Neighbors per cell", 4, 14, 8)
     st.header("View")
-    color_by = st.selectbox("Colour by", ["strain", "zone", "failure probability", "stiffness"])
+    color_by = st.selectbox("Colour By", ["strain", "zone", "failure probability", "stiffness"], format_func=ui.nice_name)
     show_links = st.checkbox("Show mechanical links", value=False)
-    build = st.button("Load and analyze", type="primary")
+    build = st.button("Load and Analyze", type="primary")
 
 
 def get_data():

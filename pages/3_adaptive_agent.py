@@ -18,9 +18,10 @@ from mequa.agents.adaptive_investigator import AdaptiveInvestigator
 from mequa.session import Session
 from mequa.utils.env import load_env_file
 
+from mequa import ui  # noqa: E402
+
 load_env_file()
-st.title("Adaptive agent")
-st.caption("Llama calls the solver, reads the numbers and decides what to run next. The firewall checks the request and the reply.")
+ui.page_header('Adaptive Agent', 'Llama calls the solver, reads the numbers and decides what to run next. The firewall checks the request and the reply.')
 
 
 @st.cache_resource
@@ -38,7 +39,7 @@ with st.sidebar:
     limit = st.number_input("Strain limit (p95 strain that counts as failure)", 0.005, 0.5, 0.05, 0.005, help="A modelling choice you set, not a measured tissue property.")
     max_iter = st.slider("Max tool rounds", 2, 8, 6)
     question = st.text_area("Research question", "Find the load at which this tissue sample reaches the strain limit.", height=100)
-    run = st.button("Run investigation", type="primary")
+    run = st.button("Run Investigation", type="primary")
 
 if run:
     if source.startswith("SAM"):

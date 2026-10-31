@@ -10,18 +10,9 @@ import streamlit as st
 from mequa import agent as agent_mod
 from mequa import backend, couple, ingest, simulink, slx_demo
 from mequa.firewall import check_request
+from mequa import ui
 
 
-st.markdown(
-    """
-    <style>
-    .mequa-ok {background:#0f3d24;border:1px solid #22c55e;color:#bbf7d0;padding:10px 14px;border-radius:8px;font-weight:600;}
-    .mequa-halt {background:#4a0d14;border:1px solid #ef4444;color:#fecaca;padding:10px 14px;border-radius:8px;font-weight:700;}
-    .mequa-logo {background:#ffffff;border-radius:10px;padding:8px;display:inline-block;}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 
 @st.cache_resource(show_spinner="Starting the compute backend (the Julia core compiles on first start and can take a minute)...")
@@ -29,25 +20,16 @@ def get_backend(kind):
     return backend.load({"julia": "julia_worker", "rust": "rust", "numpy": "numpy"}[kind])
 
 
-backend_kind = st.sidebar.selectbox("Compute backend", ["julia", "rust", "numpy"])
+backend_kind = st.sidebar.selectbox("Compute Backend", ["julia", "rust", "numpy"], format_func=ui.nice_name)
 be = get_backend(backend_kind)
 if be.name != backend_kind:
-    st.sidebar.warning(f"{backend_kind} is unavailable, running on {be.name}. See the terminal for the reason.")
+    st.sidebar.warning(f"{ui.nice_name(backend_kind)} is unavailable, running on {ui.nice_name(be.name)}. See the terminal for the reason.")
 
-logo = Path("assets/logo.png")
-head_left, head_right = st.columns([1, 6])
-with head_left:
-    if logo.exists():
-        st.markdown('<div class="mequa-logo">', unsafe_allow_html=True)
-        st.image(str(logo), width=90)
-        st.markdown("</div>", unsafe_allow_html=True)
-with head_right:
-    st.title("Mequa")
-    st.caption("Quantitative workbench for tissue-mechanics research data. Research datasets only, no clinical guidance.")
+ui.page_header("Workbench", "Quantitative workbench for tissue-mechanics research data. Research datasets only, no clinical guidance.", eyebrow="Mequa")
 
 with st.sidebar:
     st.subheader("Compute")
-    st.write(f"Backend: **{be.name}**")
+    st.write(f"Backend: **{ui.nice_name(be.name)}**")
     st.subheader("Data")
     source = st.radio("Source", ["Synthetic cells", "Upload CSV (x,y)", "Segment an image"])
     n_cells = st.slider("Synthetic cells", 500, 10000, 2000, 500) if source == "Synthetic cells" else None
@@ -59,7 +41,7 @@ with st.sidebar:
             st.session_state["points"] = ingest.load_points_csv(tmp.name)
     if source == "Segment an image":
         img_file = st.file_uploader("Public research image", type=["png", "jpg", "jpeg", "tif", "tiff"])
-        method = st.selectbox("Segmentation", ["sam", "classical"])
+        method = st.selectbox("Segmentation", ["sam", "classical"], format_func=ui.nice_name)
         if img_file is not None and st.button("Segment"):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                 tmp.write(img_file.getvalue())
@@ -73,7 +55,7 @@ with st.sidebar:
     zones = st.slider("Density zones", 2, 8, 3)
     knn = st.slider("Neighbors per cell", 3, 12, 6)
     load = st.slider("Pull (fraction of width)", 0.01, 0.15, 0.05, 0.01)
-    run = st.button("Run analysis", type="primary")
+    run = st.button("Run Analysis", type="primary", use_container_width=True)
 
 if source == "Synthetic cells" and n_cells is not None:
     key = ("synthetic", n_cells)
@@ -87,7 +69,7 @@ if run and points is not None and len(points) > knn + 1:
     with st.spinner("Solving..."):
         st.session_state["result"] = be.analyze(points, k=zones, knn=knn, load=load)
 
-tab_map, tab_risk, tab_agent, tab_guard, tab_slx, tab_evidence = st.tabs(["Spatial map", "Risk monitor", "Agent", "Compliance firewall", "Simulink import", "Evidence"])
+tab_map, tab_risk, tab_agent, tab_guard, tab_slx, tab_evidence = st.tabs(["Spatial Map", "Risk Monitor", "Agent", "Compliance Firewall", "Simulink Import", "Evidence"])
 
 result = st.session_state.get("result")
 
@@ -98,7 +80,7 @@ with tab_map:
         st.write(f"{len(points)} cells loaded. Press Run analysis.")
         st.plotly_chart(px.scatter(x=points[:, 0], y=points[:, 1], opacity=0.6), width="stretch")
     else:
-        mode = st.radio("Color by", ["Zone", "Strain", "Failure probability"], horizontal=True)
+        mode = st.radio("Color by", ["Zone", "Strain", "Failure Probability"], horizontal=True)
         df = pd.DataFrame({
             "x": points[:, 0],
             "y": points[:, 1],
@@ -132,7 +114,7 @@ with tab_agent:
         "Describe an experiment",
         "Cluster the cells into density zones and report strain risk under a 5 percent load",
     )
-    if st.button("Run agent"):
+    if st.button("Run Agent"):
         if points is None:
             st.warning("Load data first.")
         else:
@@ -163,7 +145,7 @@ with tab_agent:
 
 with tab_guard:
     probe = st.text_input("Test a query", "Compute shear stress boundaries across grid parameters")
-    if st.button("Check query"):
+    if st.button("Check Query"):
         try:
             verdict = check_request(probe)
             if verdict.degraded and verdict.allowed:
@@ -195,7 +177,7 @@ with tab_slx:
             st.session_state["slx_path"] = tmp.name
             st.session_state["slx_vars"] = ""
     with right:
-        if st.button("Use demo 2-element Windkessel model"):
+        if st.button("Use Demo 2-element Windkessel Model"):
             tmp_dir = tempfile.mkdtemp()
             st.session_state["slx_path"] = slx_demo.make_demo_slx(str(Path(tmp_dir) / "windkessel_demo.slx"))
             st.session_state["slx_vars"] = "R=1.0, C=0.3"
@@ -217,7 +199,7 @@ with tab_slx:
         sig_name = st.selectbox("Signal", list(sim.signals.keys()))
         st.plotly_chart(px.line(x=sim.time, y=sim.signals[sig_name], labels={"x": "time (s)", "y": sig_name}), width="stretch")
         samples = st.slider("Load samples across the signal", 6, 40, 16)
-        if st.button("Drive strain solver with this signal"):
+        if st.button("Drive Strain Solver With This Signal"):
             if points is None:
                 st.warning("Load cell data first.")
             else:

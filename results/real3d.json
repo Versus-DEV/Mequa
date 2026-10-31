@@ -1,0 +1,37 @@
+{
+  "volume_shape_zyx": [
+    32,
+    1344,
+    1024
+  ],
+  "detection_seconds": 16.5,
+  "z_scale": 1.0,
+  "units": "voxels (x, y, z*z_scale)",
+  "detection_vs_expert_labels": {
+    "radius_vox": 4.0,
+    "detected": 72,
+    "ground_truth": 15,
+    "tp": 0,
+    "fp": 72,
+    "fn": 15,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "count_error_pct": 380.0,
+    "median_center_error_vox": null
+  },
+  "analysis_on_detected_cells": {
+    "n_components": 1,
+    "load_path": true,
+    "residual": 0.144,
+    "sphi": 0.172642,
+    "mean_strain": 0.00673,
+    "max_strain": 0.03332,
+    "cells": 72,
+    "dim": 3,
+    "knn": 10,
+    "strain_limit": 0.05,
+    "threshold_load_p95": null,
+    "sweep_seconds": 1.3984
+  }
+}

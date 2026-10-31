@@ -5,10 +5,10 @@ use rayon::prelude::*;
 
 const PAR_THRESHOLD: usize = 5000;
 
-fn check_points(points: &PyReadonlyArray2<f64>) -> PyResult<usize> {
+fn check_points(points: &PyReadonlyArray2<f64>) -> PyResult<(usize, usize)> {
     let shape = points.shape();
-    if shape[1] != 2 {
-        return Err(PyValueError::new_err("points must have shape (n, 2)"));
+    if shape[1] != 2 && shape[1] != 3 {
+        return Err(PyValueError::new_err("points must have shape (n, 2) or (n, 3)"));
     }
     if shape[0] < 2 {
         return Err(PyValueError::new_err("need at least 2 points"));
@@ -16,7 +16,7 @@ fn check_points(points: &PyReadonlyArray2<f64>) -> PyResult<usize> {
     if !points.is_c_contiguous() {
         return Err(PyValueError::new_err("points must be C-contiguous float64; use numpy.ascontiguousarray"));
     }
-    Ok(shape[0])
+    Ok((shape[0], shape[1]))
 }
 
 fn grid_knn(pts: &[f64], n: usize, k: usize) -> Vec<(i64, i64)> {
@@ -176,6 +176,7 @@ fn build_csr(n: usize, ei: &[i64], ej: &[i64]) -> Csr {
 fn relax(
     pts: &[f64],
     n: usize,
+    d: usize,
     ei: &[i64],
     ej: &[i64],
     load: f64,
@@ -184,24 +185,24 @@ fn relax(
     step: f64,
 ) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
     let m = ei.len();
-    let rest: Vec<f64> = (0..m)
-        .map(|e| {
-            let a = ei[e] as usize;
-            let b = ej[e] as usize;
-            let dx = pts[2 * a] - pts[2 * b];
-            let dy = pts[2 * a + 1] - pts[2 * b + 1];
-            (dx * dx + dy * dy).sqrt().max(1e-9)
-        })
-        .collect();
+    let dist = |p: &[f64], a: usize, b: usize| -> f64 {
+        let mut s = 0.0;
+        for c in 0..d {
+            let t = p[d * a + c] - p[d * b + c];
+            s += t * t;
+        }
+        s.sqrt()
+    };
+    let rest: Vec<f64> = (0..m).map(|e| dist(pts, ei[e] as usize, ej[e] as usize).max(1e-9)).collect();
     let (mut lo, mut hi) = (f64::INFINITY, f64::NEG_INFINITY);
     for i in 0..n {
-        lo = lo.min(pts[2 * i]);
-        hi = hi.max(pts[2 * i]);
+        lo = lo.min(pts[d * i]);
+        hi = hi.max(pts[d * i]);
     }
     let width = hi - lo;
     let mut state = vec![0u8; n];
     for i in 0..n {
-        let x = pts[2 * i];
+        let x = pts[d * i];
         if x <= lo + band * width {
             state[i] = 1;
         } else if x >= hi - band * width {
@@ -211,11 +212,11 @@ fn relax(
     let mut pos = pts.to_vec();
     for i in 0..n {
         if state[i] == 2 {
-            pos[2 * i] += load * width;
+            pos[d * i] += load * width;
         }
     }
     let csr = build_csr(n, ei, ej);
-    let mut force = vec![0.0f64; 2 * n];
+    let mut force = vec![0.0f64; d * n];
     let parallel = n >= PAR_THRESHOLD;
     for _ in 0..iters {
         {
@@ -223,36 +224,38 @@ fn relax(
             let csr_ref = &csr;
             let rest_ref = &rest;
             let node_force = |i: usize, f: &mut [f64]| {
-                let mut fx = 0.0;
-                let mut fy = 0.0;
-                let px = pos_ref[2 * i];
-                let py = pos_ref[2 * i + 1];
+                let mut acc = [0.0f64; 3];
+                let mut dv = [0.0f64; 3];
                 for t in csr_ref.start[i]..csr_ref.start[i + 1] {
                     let j = csr_ref.nbr[t];
-                    let dx = pos_ref[2 * j] - px;
-                    let dy = pos_ref[2 * j + 1] - py;
-                    let len = (dx * dx + dy * dy).sqrt();
+                    let mut len2 = 0.0;
+                    for c in 0..d {
+                        dv[c] = pos_ref[d * j + c] - pos_ref[d * i + c];
+                        len2 += dv[c] * dv[c];
+                    }
+                    let len = len2.sqrt();
                     if len > 0.0 {
                         let s = (len - rest_ref[csr_ref.edge[t]]) / len;
-                        fx += s * dx;
-                        fy += s * dy;
+                        for c in 0..d {
+                            acc[c] += s * dv[c];
+                        }
                     }
                 }
-                f[0] = fx;
-                f[1] = fy;
+                f[..d].copy_from_slice(&acc[..d]);
             };
             if parallel {
-                force.par_chunks_mut(2).enumerate().for_each(|(i, f)| node_force(i, f));
+                force.par_chunks_mut(d).enumerate().for_each(|(i, f)| node_force(i, f));
             } else {
-                for (i, f) in force.chunks_mut(2).enumerate() {
+                for (i, f) in force.chunks_mut(d).enumerate() {
                     node_force(i, f);
                 }
             }
         }
         for i in 0..n {
             if state[i] == 0 {
-                pos[2 * i] += step * force[2 * i];
-                pos[2 * i + 1] += step * force[2 * i + 1];
+                for c in 0..d {
+                    pos[d * i + c] += step * force[d * i + c];
+                }
             }
         }
     }
@@ -262,9 +265,7 @@ fn relax(
     for e in 0..m {
         let a = ei[e] as usize;
         let b = ej[e] as usize;
-        let dx = pos[2 * b] - pos[2 * a];
-        let dy = pos[2 * b + 1] - pos[2 * a + 1];
-        let s = ((dx * dx + dy * dy).sqrt() - rest[e]).abs() / rest[e];
+        let s = (dist(&pos, a, b) - rest[e]).abs() / rest[e];
         edge_strain[e] = s;
         node_sum[a] += s;
         node_sum[b] += s;
@@ -334,7 +335,10 @@ fn knn_edges<'py>(
     points: PyReadonlyArray2<'py, f64>,
     k: usize,
 ) -> PyResult<(Bound<'py, PyArray1<i64>>, Bound<'py, PyArray1<i64>>)> {
-    let n = check_points(&points)?;
+    let (n, d) = check_points(&points)?;
+    if d != 2 {
+        return Err(PyValueError::new_err("knn_edges supports 2D only; for 3D build edges with scipy cKDTree and call relax_strain"));
+    }
     if k == 0 || k >= n {
         return Err(PyValueError::new_err("k must satisfy 1 <= k < n"));
     }
@@ -360,7 +364,7 @@ fn relax_strain<'py>(
     iters: usize,
     step: f64,
 ) -> PyResult<(Bound<'py, PyArray2<f64>>, Bound<'py, PyArray1<f64>>, Bound<'py, PyArray1<f64>>)> {
-    let n = check_points(&points)?;
+    let (n, d) = check_points(&points)?;
     let data = points
         .as_slice()
         .map_err(|_| PyValueError::new_err("points must be C-contiguous float64"))?;
@@ -372,8 +376,8 @@ fn relax_strain<'py>(
     if a.iter().chain(b.iter()).any(|&v| v < 0 || v as usize >= n) {
         return Err(PyValueError::new_err("edge index out of range"));
     }
-    let (pos, node_strain, edge_strain) = py.detach(|| relax(data, n, a, b, load, band, iters, step));
-    let pos_arr = numpy::ndarray::Array2::from_shape_vec((n, 2), pos)
+    let (pos, node_strain, edge_strain) = py.detach(|| relax(data, n, d, a, b, load, band, iters, step));
+    let pos_arr = numpy::ndarray::Array2::from_shape_vec((n, d), pos)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     Ok((pos_arr.into_pyarray(py), node_strain.into_pyarray(py), edge_strain.into_pyarray(py)))
 }

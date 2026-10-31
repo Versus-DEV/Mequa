@@ -14,10 +14,11 @@ if str(ROOT) not in sys.path:
 from mequa.guard.research_pivot import pivot_to_research
 from mequa.utils.env import load_env_file
 
+from mequa import ui  # noqa: E402
+
 load_env_file()
 
-st.title("Compliance firewall")
-st.caption("Three layers on every request: rules, Llama Guard (blocks on S6), Llama intent classifier.")
+ui.page_header('Compliance Firewall', 'Three layers on every request: rules, Llama Guard (blocks on S6) and a Llama intent classifier.')
 
 with st.sidebar:
     st.header("Request")
@@ -26,7 +27,7 @@ with st.sidebar:
         value="Cluster the cells into density zones and report strain under a 5 percent load.",
         height=140,
     )
-    check = st.button("Check request", type="primary")
+    check = st.button("Check Request", type="primary")
 
 if check:
     with st.spinner("Running the firewall layers..."):

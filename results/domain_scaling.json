@@ -1,0 +1,77 @@
+{
+  "cells": 20000,
+  "dim": 3,
+  "iters": 300,
+  "repeats": 3,
+  "serial_seconds_median": 4.267,
+  "scaling": [
+    {
+      "ranks": 1,
+      "wall_seconds_median": 3.211,
+      "wall_seconds_all": [
+        3.151,
+        3.211,
+        3.274
+      ],
+      "spread_pct": 3.8,
+      "speedup_vs_serial": 1.33,
+      "speedup_vs_1_rank": 1.0,
+      "efficiency_vs_serial": 1.33,
+      "max_abs_position_diff_vs_serial": 0.0,
+      "max_abs_strain_diff_vs_serial": 0.0,
+      "halo_nodes_rank0": 0,
+      "noisy": false
+    },
+    {
+      "ranks": 2,
+      "wall_seconds_median": 2.022,
+      "wall_seconds_all": [
+        2.022,
+        3.52,
+        1.867
+      ],
+      "spread_pct": 81.8,
+      "speedup_vs_serial": 2.11,
+      "speedup_vs_1_rank": 1.59,
+      "efficiency_vs_serial": 1.06,
+      "max_abs_position_diff_vs_serial": 0.0,
+      "max_abs_strain_diff_vs_serial": 0.0,
+      "halo_nodes_rank0": 926,
+      "noisy": true
+    },
+    {
+      "ranks": 4,
+      "wall_seconds_median": 1.343,
+      "wall_seconds_all": [
+        1.598,
+        1.343,
+        1.342
+      ],
+      "spread_pct": 19.1,
+      "speedup_vs_serial": 3.18,
+      "speedup_vs_1_rank": 2.39,
+      "efficiency_vs_serial": 0.79,
+      "max_abs_position_diff_vs_serial": 0.0,
+      "max_abs_strain_diff_vs_serial": 0.0,
+      "halo_nodes_rank0": 866,
+      "noisy": false
+    },
+    {
+      "ranks": 8,
+      "wall_seconds_median": 2.222,
+      "wall_seconds_all": [
+        1.999,
+        2.268,
+        2.222
+      ],
+      "spread_pct": 12.1,
+      "speedup_vs_serial": 1.92,
+      "speedup_vs_1_rank": 1.45,
+      "efficiency_vs_serial": 0.24,
+      "max_abs_position_diff_vs_serial": 0.0,
+      "max_abs_strain_diff_vs_serial": 0.0,
+      "halo_nodes_rank0": 686,
+      "noisy": false
+    }
+  ]
+}

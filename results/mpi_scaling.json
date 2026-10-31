@@ -1,0 +1,69 @@
+{
+  "cells": 3000,
+  "dim": 2,
+  "loads": 24,
+  "repeats": 3,
+  "machine": {
+    "node": "DESKTOP-PMS42D6",
+    "processor": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+    "python": "3.14.7"
+  },
+  "scaling": [
+    {
+      "ranks": 1,
+      "wall_seconds_median": 30.998,
+      "wall_seconds_all": [
+        23.9165,
+        30.9982,
+        31.037
+      ],
+      "spread_pct": 23.0,
+      "speedup": 1.0,
+      "efficiency": 1.0,
+      "max_abs_diff_vs_first": 0.0,
+      "noisy": true
+    },
+    {
+      "ranks": 2,
+      "wall_seconds_median": 18.682,
+      "wall_seconds_all": [
+        22.0366,
+        18.682,
+        15.6632
+      ],
+      "spread_pct": 34.1,
+      "speedup": 1.66,
+      "efficiency": 0.83,
+      "max_abs_diff_vs_first": 0.0,
+      "noisy": true
+    },
+    {
+      "ranks": 4,
+      "wall_seconds_median": 13.368,
+      "wall_seconds_all": [
+        13.9171,
+        12.876,
+        13.3684
+      ],
+      "spread_pct": 7.8,
+      "speedup": 2.32,
+      "efficiency": 0.58,
+      "max_abs_diff_vs_first": 0.0,
+      "noisy": false
+    },
+    {
+      "ranks": 8,
+      "wall_seconds_median": 10.818,
+      "wall_seconds_all": [
+        10.8182,
+        10.6432,
+        11.1035
+      ],
+      "spread_pct": 4.3,
+      "speedup": 2.87,
+      "efficiency": 0.36,
+      "max_abs_diff_vs_first": 0.0,
+      "noisy": false
+    }
+  ]
+}

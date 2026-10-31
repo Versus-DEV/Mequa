@@ -56,6 +56,27 @@ def _parse_args(raw) -> Dict[str, Any]:
     return {}
 
 
+KNOWN_TOOLS = ("run_solver", "sweep_load")
+
+
+def text_tool_call(content) -> Optional[Dict[str, Any]]:
+    """Some Llama builds print a tool call as JSON text instead of using the tool_calls field."""
+    if not content or not isinstance(content, str):
+        return None
+    text = content.replace("<|python_tag|>", "")
+    start, end = text.find("{"), text.rfind("}") + 1
+    if start == -1 or end == 0:
+        return None
+    try:
+        obj = json.loads(text[start:end])
+    except ValueError:
+        return None
+    if not isinstance(obj, dict) or obj.get("name") not in KNOWN_TOOLS:
+        return None
+    args = obj.get("parameters", obj.get("arguments", {}))
+    return {"function": {"name": obj["name"], "arguments": args if isinstance(args, (dict, str)) else {}}}
+
+
 def flatten_facts(trace: List[Dict[str, Any]], extra: Optional[Dict[str, Any]] = None) -> List[Any]:
     facts: List[Any] = [extra or {}]
     for step in trace:
@@ -115,6 +136,8 @@ class AdaptiveInvestigator:
         self.check_reply = check_reply
         self.max_grounding_retries = max_grounding_retries
         self.trace: List[Dict[str, Any]] = []
+        self.diagnostics: List[Dict[str, Any]] = []
+        self.forced_sweep = False
 
     # ------------------------------------------------------------------ tools
     def execute(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
@@ -149,6 +172,8 @@ class AdaptiveInvestigator:
     # ------------------------------------------------------------------- loop
     def run(self, question: str) -> Dict[str, Any]:
         self.trace = []
+        self.diagnostics = []
+        self.forced_sweep = False
         verdict = self.check_request(question)
         if not verdict.allowed:
             return {"status": "blocked", "blocked_by": verdict.blocked_by, "trace": self.trace}
@@ -159,6 +184,9 @@ class AdaptiveInvestigator:
         ]
         tools = get_solver_tools()
         nudged = False
+        sweep_nudged = False
+        forced = False
+        wants_sweep = any(w in question.lower() for w in ("threshold", "limit", "fail", "how much load", "sweep", "reach"))
         final_text = None
         for iteration in range(1, self.max_iterations + 1):
             resp = self.chat(messages=messages, model=self.model, tools=tools, temperature=0.0, max_tokens=700)
@@ -166,12 +194,34 @@ class AdaptiveInvestigator:
                 return {"status": "model_unavailable", "error": resp["error"], "trace": self.trace}
             msg = resp.get("message", {})
             calls = msg.get("tool_calls") or []
+            from_text = False
             if not calls:
+                parsed = text_tool_call(msg.get("content"))
+                if parsed:
+                    calls, from_text = [parsed], True
+                    self.diagnostics.append({"iteration": iteration, "event": "tool call printed as text, executed anyway"})
+            if not calls:
+                self.diagnostics.append({"iteration": iteration, "event": "no tool call", "content": (msg.get("content") or "")[:300]})
                 have_result = any(s.get("type") == "tool_call" for s in self.trace)
                 if not have_result and not nudged:
                     nudged = True
                     messages.append({"role": "assistant", "content": msg.get("content", "")})
                     messages.append({"role": "user", "content": "Call run_solver first, then answer from its result."})
+                    continue
+                have_sweep = any(s_.get("type") == "tool_call" and s_["tool"] == "sweep_load" and "rows" in s_["result"] for s_ in self.trace)
+                if wants_sweep and not have_sweep and not sweep_nudged and iteration < self.max_iterations:
+                    sweep_nudged = True
+                    messages.append({"role": "assistant", "content": msg.get("content", "")})
+                    messages.append({"role": "user", "content": "The question asks for a threshold. Call sweep_load over a range of loads, then answer from its threshold_load."})
+                    continue
+                if wants_sweep and not have_sweep and sweep_nudged and not forced and iteration < self.max_iterations:
+                    forced = self.forced_sweep = True
+                    args = {"start": 0.01, "stop": 0.12, "steps": 8}
+                    result = self.execute("sweep_load", args)
+                    self.trace.append({"iteration": iteration, "type": "tool_call", "tool": "sweep_load", "arguments": args, "result": result, "forced": True})
+                    self.diagnostics.append({"iteration": iteration, "event": "model ignored the sweep request twice; a default sweep was run for it"})
+                    messages.append({"role": "assistant", "content": msg.get("content", ""), "tool_calls": [{"function": {"name": "sweep_load", "arguments": args}}]})
+                    messages.append({"role": "tool", "tool_name": "sweep_load", "content": json.dumps(result)})
                     continue
                 final_text = (msg.get("content") or "").strip()
                 self.trace.append({"iteration": iteration, "type": "final", "content": final_text})
@@ -218,4 +268,6 @@ class AdaptiveInvestigator:
             "iterations": max((s["iteration"] for s in self.trace), default=0),
             "grounding": {"attempts": attempts, "fallback": fallback},
             "model": self.model,
+            "forced_sweep": self.forced_sweep,
+            "diagnostics": self.diagnostics,
         }

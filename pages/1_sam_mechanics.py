@@ -52,10 +52,11 @@ from mequa.physics.stiffness_from_geometry import (
 )
 
 
+from mequa import ui  # noqa: E402
+
 load_env_file()
 
-st.title("SAM Mechanics")
-st.caption("Research use only. No clinical guidance.")
+ui.page_header('SAM Mechanics', 'Image to masks to cells to per-cell stiffness. Research use only, no clinical guidance.')
 
 OUTPUT_ROOT = ROOT / "outputs"
 SAM_OUT = OUTPUT_ROOT / "sam"
@@ -118,7 +119,7 @@ with st.sidebar:
         step=10,
     )
 
-    run = st.button("Run pipeline", type="primary")
+    run = st.button("Run Pipeline", type="primary")
 
 
 example_path = ROOT / "data" / "images" / "bbbc_sample_0001.png"

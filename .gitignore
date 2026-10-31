@@ -39,3 +39,8 @@ data/raw/
 logs/*.log
 .DS_Store
 Thumbs.db
+
+# Launcher
+launcher/target/
+Mequa.exe
+Mequa

@@ -1,0 +1,13 @@
+{
+  "ranks": 4,
+  "cells": 20000,
+  "dim": 3,
+  "edges": 95468,
+  "iters": 300,
+  "wall_seconds": 1.482,
+  "halo_nodes_rank0": 866,
+  "max_strain": 0.13818605929083355,
+  "serial_seconds": 3.51,
+  "max_abs_position_diff_vs_serial": 0.0,
+  "max_abs_strain_diff_vs_serial": 0.0
+}

@@ -20,10 +20,11 @@ from mequa.blockspec.xcos_importer import simulate_block_spec
 from mequa.utils.env import load_env_file
 
 
+from mequa import ui  # noqa: E402
+
 load_env_file()
 
-st.title("Simulink / Xcos Editor")
-st.caption("Prompt-to-model translation with validation loop")
+ui.page_header('Simulink / Xcos Editor', 'Prompt-to-model translation with a validation loop.')
 
 with st.sidebar:
     st.header("Model Description")
@@ -34,7 +35,7 @@ with st.sidebar:
         height=150,
     )
 
-    generate = st.button("Generate block spec", type="primary")
+    generate = st.button("Generate Block Spec", type="primary")
 
 
 if generate:
