@@ -54,7 +54,9 @@ def _chat_url(node):
     """Main-node calls go to OLLAMA_MAIN_URL, guard-node calls (Llama Guard and the intent
     classifier) to OLLAMA_GUARD_URL. Both default to this machine, so a single laptop still works."""
     if node == "guard":
-        base = os.environ.get("OLLAMA_GUARD_URL") or os.environ.get("OLLAMA_MAIN_URL")
+        from mequa import settings
+
+        base = settings.effective_guard_url()
     else:
         base = os.environ.get("OLLAMA_MAIN_URL")
     return (base or "http://localhost:11434").rstrip("/") + "/api/chat"
@@ -155,6 +157,8 @@ def check_reply(text, reply):
     try:
         unsafe, categories, raw = guard_check(text, reply)
     except OSError:
+        # fail closed: an unchecked reply is not shown. Guard mode "auto" or "main" avoids this by
+        # running the guard models on the main machine when the guard machine is down.
         return Verdict(allowed=False, blocked_by=["guard_unreachable"], degraded=True)
     blocked = _guard_blocks(unsafe, categories)
     return Verdict(

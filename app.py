@@ -14,13 +14,15 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from mequa import ui
+from mequa.ui import shell
 from mequa.utils.env import load_env_file
 from mequa.vision.sam_loader import SamLoader
 
 load_env_file()
 
-st.set_page_config(page_title="Mequa", page_icon="assets/logo.png" if (ROOT / "assets" / "logo.png").exists() else "🧬", layout="wide")
-ui.apply()
+st.set_page_config(page_title="Mequa Workspace", page_icon="assets/logo.png" if (ROOT / "assets" / "logo.png").exists() else "🧬",
+                   layout="wide", initial_sidebar_state="expanded")
+shell.render()
 
 
 def home() -> None:
@@ -32,10 +34,11 @@ def home() -> None:
 
     loader = SamLoader()
     sam_ok, sam_message = loader.is_available()
-    guard_url = os.getenv("OLLAMA_GUARD_URL", "")
+    from mequa import settings
+    guard_url = settings.configured_guard_url()
     st.markdown(
         ui.pill("SAM Ready" if sam_ok else "SAM Unavailable", "ok" if sam_ok else "bad")
-        + ui.pill("Guard Node Set" if guard_url else "Guard Node Not Set", "ok" if guard_url else "idle")
+        + ui.pill({"main": "Firewall: main machine", "dedicated": "Firewall: guard machine only", "auto": "Firewall: auto"}[settings.guard_mode()], "ok")
         + ui.pill("Python " + sys.version.split()[0])
         + ui.pill(platform.system()),
         unsafe_allow_html=True,
@@ -48,9 +51,11 @@ def home() -> None:
         ("03", "Adaptive Agent", "Llama calls the solver as tools, sweeps loads and writes a grounded summary."),
         ("04", "Compliance Firewall", "Rules, Llama Guard and an intent classifier decide on every request."),
         ("05", "Simulink Editor", "Plain English to a validated block spec to a simulation."),
-        ("06", "Cell Viewer", "Interactive 2D and 3D views of cells coloured by strain, zone or stiffness."),
-        ("07", "Benchmarks", "Measured solver and MPI scaling results with the machine that produced them."),
-        ("08", "Two-Machine Status", "Check the Llama Guard node on the second laptop."),
+        ("06", "3D Viewer", "WebGL viewer for cell models and PDB / XYZ molecules: orbit, box select, clip, measure, load animation."),
+        ("07", "Model Editor", "Edit a 3D cell model in three CAD views: select, move, rotate, scale, add, delete, set stiffness, then re-solve."),
+        ("08", "Benchmarks", "Measured solver and MPI scaling results with the machine that produced them."),
+        ("09", "Machines", "Choose whether the guard laptop or the main machine runs the firewall, and check both nodes."),
+        ("10", "AI Agent dock", "The chat on the right asks Llama questions about the dataset in the workspace, with the firewall on both sides."),
     ])
 
     st.markdown("### Environment")
@@ -72,7 +77,9 @@ nav = st.navigation(
         "Analysis": [
             st.Page("pages/0_workbench.py", title="Workbench", icon=":material/dashboard:"),
             st.Page("pages/1_sam_mechanics.py", title="SAM Mechanics", icon=":material/biotech:"),
-            st.Page("pages/5_mesh_viewer.py", title="Cell Viewer", icon=":material/view_in_ar:"),
+            st.Page("pages/8_viewer.py", title="3D Viewer", icon=":material/view_in_ar:"),
+            st.Page("pages/5_mesh_viewer.py", title="Cell Viewer", icon=":material/scatter_plot:"),
+            st.Page("pages/7_model_editor.py", title="Model Editor", icon=":material/edit:"),
         ],
         "Intelligence": [
             st.Page("pages/3_adaptive_agent.py", title="Adaptive Agent", icon=":material/psychology:"),
@@ -81,7 +88,7 @@ nav = st.navigation(
         ],
         "System": [
             st.Page("pages/6_solver_benchmark.py", title="Benchmarks", icon=":material/speed:"),
-            st.Page("pages/2_two_machine_status.py", title="Two-Machine Status", icon=":material/lan:"),
+            st.Page("pages/2_two_machine_status.py", title="Machines", icon=":material/lan:"),
         ],
     }
 )

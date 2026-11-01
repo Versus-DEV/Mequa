@@ -40,7 +40,7 @@ with st.sidebar:
 
 if generate:
     with st.spinner("Translating to block specification..."):
-        translation = translate_to_block_spec(user_prompt)
+        translation = translate_to_block_spec(user_prompt, offline_fallback=True)
 
     st.session_state["translation"] = translation
 
@@ -58,12 +58,17 @@ tab_spec, tab_validation, tab_simulation = st.tabs(
 
 with tab_spec:
     if translation.get("success"):
+        if translation.get("source") == "rules":
+            st.warning(translation.get("llm_error", "Llama was not used.") + "\n\nThis block spec was written by the built-in rule parser, not by Llama. "
+                       "It understands first-order, second-order and integrator systems with an optional step input and gain blocks.")
         st.json(translation["block_spec"])
 
         with st.expander("Raw Llama response"):
             st.code(translation.get("raw", ""))
     else:
         st.error(translation.get("error", "Unknown error"))
+        st.caption("Offline examples the built-in parser understands: \"first-order, gain 2, time constant 1\" or "
+                   "\"second-order, natural frequency 3, damping ratio 0.4, step of amplitude 2\".")
 
         if "raw" in translation:
             with st.expander("Raw Llama response"):

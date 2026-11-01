@@ -21,7 +21,7 @@ from mequa import numpy_backend as nb
 from mequa.session import Session
 from mequa.utils.env import load_env_file
 
-from mequa import ui  # noqa: E402
+from mequa import ui, workspace  # noqa: E402
 
 load_env_file()
 ui.page_header('Cell Viewer', '2D and 3D. The 3D path runs on the NumPy spring-network backend; Julia and Rust handle 2D uniform jobs.')
@@ -36,7 +36,7 @@ with st.sidebar:
     st.header("Data")
     source = st.selectbox(
         "Source",
-        ["Synthetic 3D blob", "Synthetic 2D blob", "Demo z-stack (synthetic spheres)", "Upload z-stack images", "Upload CSV", "SAM cells (outputs/sam/cells.csv)"],
+        ["Synthetic 3D blob", "Synthetic 2D blob", "Workspace dataset (editor or workbench)", "Demo z-stack (synthetic spheres)", "Upload z-stack images", "Upload CSV", "SAM cells (outputs/sam/cells.csv)"],
     )
     n_cells = st.slider("Cells", 200, 4000, 1200, 100) if source.startswith("Synthetic") else None
     z_spacing = st.number_input("Slice spacing (pixel units)", 0.1, 20.0, 1.0, 0.1) if "z-stack" in source else 1.0
@@ -60,6 +60,11 @@ def get_data():
         return nb.synthetic_cells(n_cells, seed=5, clusters=1, dim=3), None, "synthetic 3D blob"
     if source == "Synthetic 2D blob":
         return nb.synthetic_cells(n_cells, seed=5, clusters=1, dim=2), None, "synthetic 2D blob"
+    if source.startswith("Workspace dataset"):
+        ds = workspace.current(st.session_state)
+        if ds is None:
+            raise ValueError("The workspace has no dataset yet. Build one in the Model Editor or load cells in the Workbench.")
+        return ds.points, ds.stiffness, f"workspace dataset ({ds.label})"
     if source == "Demo z-stack (synthetic spheres)":
         imgs, _ = ingest.make_demo_stack(n_cells=60, n_slices=12, size=256)
         pts, areas = ingest.segment_stack(imgs, "classical", z_spacing=z_spacing, split=split, min_distance=5)
@@ -94,6 +99,7 @@ if build:
     try:
         pts, stiff, label = get_data()
         st.session_state["viewer_data"] = (pts, stiff, label)
+        workspace.publish(st.session_state, pts, stiff, label=label, source="Cell Viewer")
     except Exception as exc:
         st.error(str(exc))
 
@@ -162,7 +168,7 @@ with tab3d:
             hovertemplate="x=%{x:.1f} y=%{y:.1f} z=%{z:.1f}<br>" + color_by + "=%{marker.color:.4f}<extra></extra>",
         ))
         fig.update_layout(height=640, margin=dict(l=0, r=0, t=10, b=0), scene=dict(aspectmode="data"))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 with tab2d:
     if pts.shape[1] == 3:
@@ -181,7 +187,7 @@ with tab2d:
     ))
     fig2.update_yaxes(scaleanchor="x")
     fig2.update_layout(height=620, margin=dict(l=0, r=0, t=10, b=0))
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(fig2, width="stretch")
 
 with tabtable:
-    st.dataframe(summary["per_zone"], use_container_width=True)
+    st.dataframe(summary["per_zone"], width="stretch")

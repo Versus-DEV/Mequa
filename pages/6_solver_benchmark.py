@@ -30,7 +30,7 @@ st.subheader("MPI load sweep scaling")
 if mpi.exists():
     m = json.loads(mpi.read_text(encoding="utf-8"))
     st.caption(f"{m['cells']} cells, {m['dim']}D, {m['loads']} loads, median of {m.get('repeats', m.get('repeats_best_of'))} interleaved runs. Machine: {m['machine'].get('node')} ({m['machine'].get('processor')})")
-    st.dataframe(pd.DataFrame(m["scaling"]), use_container_width=True)
+    st.dataframe(pd.DataFrame(m["scaling"]), width="stretch")
     st.caption("max_abs_diff_vs_1_rank is the largest difference in any reported number between that rank count and the single-rank run.")
 else:
     st.info("Run: python -m mequa.mpi_scaling --cells 3000 --loads 24")

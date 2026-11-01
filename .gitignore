@@ -44,3 +44,6 @@ Thumbs.db
 launcher/target/
 Mequa.exe
 Mequa
+
+# per-user settings
+config/mequa_settings.json

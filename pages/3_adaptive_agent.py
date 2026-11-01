@@ -18,7 +18,7 @@ from mequa.agents.adaptive_investigator import AdaptiveInvestigator
 from mequa.session import Session
 from mequa.utils.env import load_env_file
 
-from mequa import ui  # noqa: E402
+from mequa import ui, workspace  # noqa: E402
 
 load_env_file()
 ui.page_header('Adaptive Agent', 'Llama calls the solver, reads the numbers and decides what to run next. The firewall checks the request and the reply.')
@@ -31,7 +31,7 @@ def numpy_be():
 
 with st.sidebar:
     st.header("Dataset")
-    source = st.selectbox("Source", ["Synthetic 3D blob", "Synthetic 2D blob", "SAM cells (outputs/sam/cells.csv)"])
+    source = st.selectbox("Source", ["Synthetic 3D blob", "Synthetic 2D blob", "Workspace dataset (editor or workbench)", "SAM cells (outputs/sam/cells.csv)"])
     n = st.slider("Synthetic cells", 300, 3000, 1000, 100)
     knn = st.slider("Neighbors per cell", 4, 14, 8)
     st.header("Agent")
@@ -42,7 +42,13 @@ with st.sidebar:
     run = st.button("Run Investigation", type="primary")
 
 if run:
-    if source.startswith("SAM"):
+    if source.startswith("Workspace"):
+        ds = workspace.current(st.session_state)
+        if ds is None:
+            st.error("The workspace has no dataset yet. Build one in the Model Editor or load cells in the Workbench.")
+            st.stop()
+        pts, stiff = ds.points, ds.stiffness
+    elif source.startswith("SAM"):
         path = ROOT / "outputs" / "sam" / "cells.csv"
         if not path.exists():
             st.error("No SAM cells yet. Run the SAM Mechanics page on a real image first.")

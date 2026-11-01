@@ -17,7 +17,9 @@ def get_main_url() -> str:
 
 
 def get_guard_url() -> str:
-    return os.getenv("OLLAMA_GUARD_URL", get_main_url()).rstrip("/")
+    from mequa import settings
+
+    return settings.effective_guard_url()
 
 
 def _post_json(

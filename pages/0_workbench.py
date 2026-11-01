@@ -10,7 +10,7 @@ import streamlit as st
 from mequa import agent as agent_mod
 from mequa import backend, couple, ingest, simulink, slx_demo
 from mequa.firewall import check_request
-from mequa import ui
+from mequa import ui, workspace
 
 
 
@@ -38,7 +38,7 @@ with st.sidebar:
         if up is not None:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
                 tmp.write(up.getvalue())
-            st.session_state["points"] = ingest.load_points_csv(tmp.name)
+            st.session_state["wb_points"] = ingest.load_points_csv(tmp.name)
     if source == "Segment an image":
         img_file = st.file_uploader("Public research image", type=["png", "jpg", "jpeg", "tif", "tiff"])
         method = st.selectbox("Segmentation", ["sam", "classical"], format_func=ui.nice_name)
@@ -48,35 +48,43 @@ with st.sidebar:
             with st.spinner("Segmenting (SAM on CPU can take a minute)..."):
                 try:
                     pts, _ = ingest.segment(ingest.load_image(tmp.name), method)
-                    st.session_state["points"] = pts
+                    st.session_state["wb_points"] = pts
                 except Exception as exc:
                     st.error(f"Segmentation failed: {exc}")
     st.subheader("Experiment")
     zones = st.slider("Density zones", 2, 8, 3)
     knn = st.slider("Neighbors per cell", 3, 12, 6)
     load = st.slider("Pull (fraction of width)", 0.01, 0.15, 0.05, 0.01)
-    run = st.button("Run Analysis", type="primary", use_container_width=True)
+    run = st.button("Run Analysis", type="primary", width="stretch")
 
 if source == "Synthetic cells" and n_cells is not None:
     key = ("synthetic", n_cells)
     if st.session_state.get("points_key") != key:
-        st.session_state["points"] = be.synthetic_cells(n_cells)
+        st.session_state["wb_points"] = be.synthetic_cells(n_cells)
         st.session_state["points_key"] = key
 
-points = st.session_state.get("points")
+points = st.session_state.get("wb_points")
+if points is not None and len(points) > 0:
+    workspace.publish(st.session_state, points, None, label=f"{source.lower()}", source="Workbench")
+
+
+def usable(res, pts):
+    """A Workbench result must carry per-cell arrays that match the current cells. Other pages keep
+    their results under their own keys, but a stale or foreign object must never crash the page."""
+    return isinstance(res, dict) and all(k in res for k in ("labels", "node_strain", "failure_prob")) and pts is not None and len(res["labels"]) == len(pts)
 
 if run and points is not None and len(points) > knn + 1:
     with st.spinner("Solving..."):
-        st.session_state["result"] = be.analyze(points, k=zones, knn=knn, load=load)
+        st.session_state["wb_result"] = be.analyze(points, k=zones, knn=knn, load=load)
 
 tab_map, tab_risk, tab_agent, tab_guard, tab_slx, tab_evidence = st.tabs(["Spatial Map", "Risk Monitor", "Agent", "Compliance Firewall", "Simulink Import", "Evidence"])
 
-result = st.session_state.get("result")
+result = st.session_state.get("wb_result")
 
 with tab_map:
     if points is None:
         st.info("Choose a data source in the sidebar.")
-    elif result is None or len(result["labels"]) != len(points):
+    elif not usable(result, points):
         st.write(f"{len(points)} cells loaded. Press Run analysis.")
         st.plotly_chart(px.scatter(x=points[:, 0], y=points[:, 1], opacity=0.6), width="stretch")
     else:
@@ -98,7 +106,7 @@ with tab_map:
         st.plotly_chart(fig, width="stretch")
 
 with tab_risk:
-    if result is None:
+    if not usable(result, points):
         st.info("Run an analysis first.")
     else:
         c1, c2, c3 = st.columns(3)
@@ -139,7 +147,7 @@ with tab_agent:
                     st.write(out["summary"])
                     st.subheader("Plan and critic loop")
                     st.dataframe(pd.DataFrame(out["history"]), width="stretch")
-                    st.session_state["result"] = out["result"]
+                    st.session_state["wb_result"] = out["result"]
                 st.subheader("Trace")
                 st.dataframe(pd.DataFrame(out["trace"]), width="stretch")
 

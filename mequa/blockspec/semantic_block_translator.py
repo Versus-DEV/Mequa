@@ -17,6 +17,7 @@ def translate_to_block_spec(
     timeout: float = 120.0,
     generate_fn=None,
     repair: bool = True,
+    offline_fallback: bool = False,
 ) -> Dict[str, Any]:
     """Translate a plain-English description into a block-spec JSON.
 
@@ -24,6 +25,9 @@ def translate_to_block_spec(
         user_prompt: Plain English description of the system.
         model: Llama model name.
         timeout: Request timeout.
+        offline_fallback: when the language model cannot be reached, parse the description with the
+            built-in rules (mequa.blockspec.rule_translator) and label the result source="rules".
+            Off by default so evaluations of the model never silently measure the fallback.
 
     Returns:
         Dict with block_spec JSON or error.
@@ -92,7 +96,7 @@ Respond with ONLY the JSON. No explanation."""
         attempts += 1
         response = gen(prompt=prompt, model=model, temperature=0.0, max_tokens=1024, timeout=timeout)
         if "error" in response:
-            return {"success": False, "error": response["error"], "attempts": attempts}
+            return _unreachable(user_prompt, response["error"], attempts, offline_fallback)
         result = parse(str(response.get("response", "")).strip())
         result["attempts"] = attempts
         problem = result.get("error") if not result["success"] else (
@@ -101,3 +105,20 @@ Respond with ONLY the JSON. No explanation."""
             return result
         prompt = (f"{system_prompt}\n\nUser description: {user_prompt}\n\nYour previous answer was rejected: {problem}\n"
                   f"Previous answer:\n{result.get('raw', '')[:800]}\n\nCorrected block specification JSON:")
+
+
+def _unreachable(user_prompt: str, error: str, attempts: int, offline_fallback: bool) -> Dict[str, Any]:
+    """Ollama did not answer (not running, wrong address, model missing). Say so in plain words."""
+    where = get_main_url()
+    friendly = (f"Ollama is not reachable at {where} ({error}). Start it (launcher: Start Ollama, or run `ollama serve`) "
+                "and make sure the planner model is pulled, then try again.")
+    if offline_fallback:
+        from mequa.blockspec.rule_translator import translate_offline
+
+        res = translate_offline(user_prompt)
+        res.update({"attempts": attempts, "llm_error": friendly})
+        if res.get("success"):
+            return res
+        res["error"] = friendly + " The built-in parser could not read the description either: " + res.get("error", "")
+        return res
+    return {"success": False, "error": friendly, "attempts": attempts}

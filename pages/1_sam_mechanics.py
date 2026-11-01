@@ -295,10 +295,10 @@ if run:
     result = run_pipeline()
 
     if result is not None:
-        st.session_state["result"] = result
+        st.session_state["sam_result"] = result
 
 
-result = st.session_state.get("result")
+result = st.session_state.get("sam_result")
 
 if result is None:
     st.info("Choose a source and click Run pipeline.")
