@@ -72,3 +72,24 @@ def test_reply_check_with_guard_down_in_auto_goes_to_main(monkeypatch):
     monkeypatch.setattr(firewall.urllib.request, "urlopen", fake_urlopen)
     v = firewall.check_reply("hello", "hi there")
     assert v.allowed and seen == ["http://main:11434/api/chat"]
+
+
+def test_theme_setting_roundtrip_and_validation(tmp_path, monkeypatch):
+    from mequa import settings
+
+    monkeypatch.setattr(settings, "PATH", tmp_path / "s.json")
+    assert settings.load()["theme"] == "light"
+    settings.save(theme="green")
+    assert settings.load()["theme"] == "green"
+    with pytest.raises(ValueError):
+        settings.save(theme="purple")
+
+
+def test_both_palettes_define_the_same_variables_and_css_builds():
+    from mequa.ui import theme
+
+    assert set(theme.PALETTES["light"]) == set(theme.PALETTES["green"])
+    for mode in theme.PALETTES:
+        css = theme._css(True, mode)
+        assert "--bg:" in css and "#fff;" not in css.lower().replace("#ffffff", "")  # no stray hard-coded white
+    assert "invert(1)" in theme._css(True, "green") and "invert(1)" not in theme._css(True, "light")

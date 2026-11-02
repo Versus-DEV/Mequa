@@ -9,6 +9,7 @@ number-grounding check or it is rewritten, and after repeated failure replaced b
 from __future__ import annotations
 
 import json
+import re
 import os
 from typing import Any, Callable, Dict, List, Optional
 
@@ -108,6 +109,20 @@ def trace_summary(trace: List[Dict[str, Any]], extra: Dict[str, Any]) -> str:
         else:
             parts.append(f"The 95th percentile strain reaches {s['strain_limit']} at a load fraction of {s['threshold_load']}.")
     return " ".join(parts)
+
+
+def ensure_threshold_stated(text: str, trace: List[Dict[str, Any]]) -> str:
+    """If a sweep found a threshold load and the text does not state it, append one grounded sentence."""
+    sweeps = [s["result"] for s in trace if s.get("type") == "tool_call" and s["tool"] == "sweep_load" and "rows" in s["result"]]
+    if not sweeps or sweeps[-1].get("threshold_load") is None:
+        return text
+    s = sweeps[-1]
+    tl = float(s["threshold_load"])
+    for m in re.findall(r"\d+\.?\d*", text or ""):
+        if abs(float(m) - tl) <= 0.005:
+            return text
+    sentence = f"The 95th percentile strain reaches {s['strain_limit']} at a load fraction of {s['threshold_load']}."
+    return f"{text} {sentence}".strip()
 
 
 class AdaptiveInvestigator:
@@ -258,6 +273,7 @@ class AdaptiveInvestigator:
         fallback = False
         if not text:
             text, fallback = trace_summary(self.trace, extra), True
+        text = ensure_threshold_stated(text, self.trace)
         verdict = self.check_reply(question, text)
         if not verdict.allowed:
             return {"status": "reply_blocked", "blocked_by": verdict.blocked_by, "trace": self.trace}

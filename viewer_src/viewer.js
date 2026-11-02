@@ -6,7 +6,15 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ConvexGeometry } from "three/examples/jsm/geometries/ConvexGeometry.js";
 
-const MINT = 0x0affd2, INK = 0x0a0a0a;
+let MINT = 0x0affd2, INK = 0x0a0a0a;
+const THEMES = { light: { bg: 0xffffff, ink: 0x0a0a0a, mint: 0x0affd2, grid: [0xdddddd, 0xeeeeee], cat0: 0x0a0a0a, low: 0xcfd6de }, green: { bg: 0x060a08, ink: 0xe6f2ea, mint: 0x22e58b, grid: [0x1d2a22, 0x111a15], cat0: 0xe6f2ea, low: 0x3a4a41 } };
+let gridObj = null;
+function setTheme(name) {
+  const t = THEMES[name] || THEMES.light; if (S._theme === name) return; S._theme = name;
+  document.body.classList.toggle("green", name === "green"); INK = t.ink; MINT = t.mint; S.bg = t.bg; CAT[0] = t.cat0; STOPS.strain[0] = t.low; STOPS.strain[1] = t.mint;
+  if (typeof scene3 !== "undefined" && scene3) { scene3.background = new THREE.Color(t.bg); scene3.fog = new THREE.Fog(t.bg, 14, 38); if (gridObj) { scene3.remove(gridObj); gridObj = new THREE.GridHelper(14, 14, t.grid[0], t.grid[1]); gridObj.rotation.x = Math.PI / 2; gridObj.position.z = -5.4; scene3.add(gridObj); }
+    if (S.scene) { applyColors(); } }
+}
 const $ = (id) => document.getElementById(id);
 const send = (type, data = {}) => window.parent.postMessage({ isStreamlitMessage: true, type, ...data }, "*");
 const setValue = (value) => send("streamlit:setComponentValue", { value, dataType: "json" });
@@ -296,14 +304,16 @@ function init() {
   controls = new OrbitControls(camera, cv); controls.enableDamping = true; controls.dampingFactor = 0.12; controls.autoRotateSpeed = 1.6;
   scene3.add(new THREE.HemisphereLight(0xffffff, 0xb9c0cc, 1.1)); const dl = new THREE.DirectionalLight(0xffffff, 1.6); dl.position.set(6, -8, 10); scene3.add(dl);
   group = new THREE.Group(); scene3.add(group); raycaster = new THREE.Raycaster(); clip = [];
-  const grid = new THREE.GridHelper(14, 14, 0xdddddd, 0xeeeeee); grid.rotation.x = Math.PI / 2; grid.position.z = -5.4; scene3.add(grid);
+  const gt = (THEMES[S._theme] || THEMES.light).grid; gridObj = new THREE.GridHelper(14, 14, gt[0], gt[1]); gridObj.rotation.x = Math.PI / 2; gridObj.position.z = -5.4; scene3.add(gridObj);
   gizmoScene = new THREE.Scene(); gizmoCam = new THREE.PerspectiveCamera(40, 1, 0.1, 10); const ax = new THREE.AxesHelper(1); gizmoScene.add(ax);
   new ResizeObserver(resize).observe($("stage")); resize(); wire(); setTool("orbit"); document.querySelector('[data-rep="spheres"]').classList.add("on"); requestAnimationFrame(loop);
 }
 
 // ----------------------------------------------------------------------------------- Streamlit protocol
 function onRender(args) {
-  if (!args) return; if (!renderer) init();
+  if (!args) return; if (args.theme && !renderer) { const t0 = THEMES[args.theme] || THEMES.light; S.bg = t0.bg; setTheme(args.theme); }
+  if (!renderer) init();
+  if (args.theme) setTheme(args.theme);
   if (args.height) { $("app").style.height = args.height + "px"; send("streamlit:setFrameHeight", { height: args.height }); }
   if (args.rep && !S.ready) { S.rep = args.rep; }
   if (args.color && !S.ready) { S.color = args.color; }

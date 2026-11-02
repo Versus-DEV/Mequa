@@ -31,8 +31,17 @@ with st.sidebar:
     st.subheader("Compute")
     st.write(f"Backend: **{ui.nice_name(be.name)}**")
     st.subheader("Data")
-    source = st.radio("Source", ["Synthetic cells", "Upload CSV (x,y)", "Segment an image"])
-    n_cells = st.slider("Synthetic cells", 500, 10000, 2000, 500) if source == "Synthetic cells" else None
+    _has_ws = workspace.current(st.session_state) is not None
+    _opts = (["Workspace dataset"] if _has_ws else []) + ["Synthetic cells (made up)", "Upload CSV (x,y)", "Segment an image"]
+    source = st.radio("Source", _opts, help="Use Image Lab to detect cells in your own image; the result appears here as Workspace dataset.")
+    if source == "Workspace dataset":
+        _ds = workspace.current(st.session_state)
+        if _ds.dim == 2:
+            st.session_state["wb_points"] = _ds.points
+            st.session_state["points_key"] = ("workspace", _ds.label)
+        else:
+            st.warning("The Workbench map and solver here are 2D. Use the Cell Viewer or 3D Viewer for this 3D dataset.")
+    n_cells = st.slider("Synthetic cells", 500, 10000, 2000, 500) if source.startswith("Synthetic") else None
     if source == "Upload CSV (x,y)":
         up = st.file_uploader("CSV with header x,y", type=["csv"])
         if up is not None:
@@ -57,7 +66,7 @@ with st.sidebar:
     load = st.slider("Pull (fraction of width)", 0.01, 0.15, 0.05, 0.01)
     run = st.button("Run Analysis", type="primary", width="stretch")
 
-if source == "Synthetic cells" and n_cells is not None:
+if source.startswith("Synthetic") and n_cells is not None:
     key = ("synthetic", n_cells)
     if st.session_state.get("points_key") != key:
         st.session_state["wb_points"] = be.synthetic_cells(n_cells)
@@ -65,7 +74,8 @@ if source == "Synthetic cells" and n_cells is not None:
 
 points = st.session_state.get("wb_points")
 if points is not None and len(points) > 0:
-    workspace.publish(st.session_state, points, None, label=f"{source.lower()}", source="Workbench")
+    if source != "Workspace dataset":
+        workspace.publish(st.session_state, points, None, label=("synthetic cells (made up)" if source.startswith("Synthetic") else source.lower()), source="Workbench")
 
 
 def usable(res, pts):
@@ -77,7 +87,7 @@ if run and points is not None and len(points) > knn + 1:
     with st.spinner("Solving..."):
         st.session_state["wb_result"] = be.analyze(points, k=zones, knn=knn, load=load)
 
-tab_map, tab_risk, tab_agent, tab_guard, tab_slx, tab_evidence = st.tabs(["Spatial Map", "Risk Monitor", "Agent", "Compliance Firewall", "Simulink Import", "Evidence"])
+tab_map, tab_risk, tab_agent, tab_guard, tab_slx, tab_evidence = st.tabs(["Spatial Map", "Risk Monitor", "Assistant", "Compliance Firewall", "Simulink Import", "Evidence"])
 
 result = st.session_state.get("wb_result")
 

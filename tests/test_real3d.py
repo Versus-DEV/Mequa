@@ -121,3 +121,85 @@ def test_nucleus_cut_by_the_stack_edge_is_detected_inside_the_stack_not_on_the_e
     assert len(pts) >= 1
     assert np.all((pts[:, 2] >= 3) & (pts[:, 2] <= 8)), pts[:, 2]
     assert np.all(pts[:, 2] <= shape[0] - 1) and np.all(pts[:, 2] >= 0)
+
+
+# ---- v6.2: textured, flat, touching nuclei (the BBBC033 over-segmentation) -------------------
+
+def _textured_flat_nuclei(seed=3):
+    import scipy.ndimage as ndi
+    rng = np.random.default_rng(seed)
+    shape = (20, 220, 220)
+    cs = [(10, 50, 50), (10, 55, 120), (9, 120, 60), (10, 125, 135), (9, 180, 180), (10, 60, 190), (11, 185, 70), (10, 190, 130)]
+    zz, yy, xx = np.mgrid[0:shape[0], 0:shape[1], 0:shape[2]]
+    vol = np.zeros(shape, np.float32)
+    lab = np.zeros(shape, np.uint16)
+    for i, c in enumerate(cs, 1):
+        m = (((zz - c[0]) / 4.5) ** 2 + ((yy - c[1]) / 24) ** 2 + ((xx - c[2]) / 21) ** 2) <= 1
+        lab[m] = i
+        vol += (700 + ndi.gaussian_filter(rng.normal(0, 1, shape).astype(np.float32), 3) * 400) * m
+    vol += rng.normal(0, 40, shape)
+    return ndi.gaussian_filter(vol, 0.7), lab
+
+
+def test_textured_flat_nuclei_are_not_split():
+    vol, lab = _textured_flat_nuclei()
+    pts = real3d.detect_nuclei_3d(vol, sigma=2.0, min_distance="auto")
+    sc = real3d.match_inside(pts, lab)
+    assert sc["recall"] == 1.0 and sc["splits"] == 0 and sc["detected"] == 8
+
+
+def test_touching_nuclei_are_still_separated():
+    shape = (20, 160, 200)
+    zz, yy, xx = np.mgrid[0:20, 0:160, 0:200]
+
+    def ell(c, r):
+        return (((zz - c[0]) / r[0]) ** 2 + ((yy - c[1]) / r[1]) ** 2 + ((xx - c[2]) / r[2]) ** 2) <= 1
+    lab = np.zeros(shape, np.uint16)
+    lab[ell((10, 80, 60), (5, 26, 22))] = 1
+    lab[ell((10, 80, 102), (5, 26, 22)) & (lab == 0)] = 2
+    vol = (lab > 0) * 800.0 + np.random.default_rng(0).normal(0, 40, shape)
+    pts = real3d.detect_nuclei_3d(vol.astype(np.float32), sigma=2.0, min_distance="auto")
+    assert len(pts) == 2
+
+
+def _blobs(shape=(30, 60, 60), centres=((10, 15, 15), (20, 40, 40), (12, 15, 45)), amp=(200, 200, 90)):
+    import numpy as np
+    zz, yy, xx = np.indices(shape)
+    v = np.zeros(shape, np.float32)
+    for (z, y, x), a in zip(centres, amp):
+        v += a * np.exp(-(((zz - z) ** 2) + (yy - y) ** 2 + (xx - x) ** 2) / (2 * 4.0 ** 2))
+    return v
+
+
+def test_threshold_scale_catches_dim_nucleus():
+    from mequa.real3d import detect_nuclei_3d
+    v = _blobs()
+    a = detect_nuclei_3d(v, sigma=1.0, threshold_scale=1.0)
+    b = detect_nuclei_3d(v, sigma=1.0, threshold_scale=0.4)
+    assert len(b) >= len(a)
+
+
+def test_refine_keeps_count_and_stays_close():
+    import numpy as np
+    from mequa.real3d import detect_nuclei_3d
+    v = _blobs()
+    a = detect_nuclei_3d(v, sigma=1.0, refine=False)
+    b = detect_nuclei_3d(v, sigma=1.0, refine=True)
+    assert len(a) == len(b)
+    assert np.abs(np.sort(a, axis=0) - np.sort(b, axis=0)).max() < 4
+
+
+def test_diagnostics_in_run(tmp_path):
+    import numpy as np, tifffile
+    from mequa.real3d import run
+    v = _blobs(amp=(200, 200, 200))
+    lab = np.zeros(v.shape, np.uint16)
+    for i, (z, y, x) in enumerate(((10, 15, 15), (20, 40, 40), (12, 15, 45)), 1):
+        lab[max(z-3,0):z+4, y-3:y+4, x-3:x+4] = i
+    tifffile.imwrite(tmp_path / "v.tif", v)
+    tifffile.imwrite(tmp_path / "l.tif", lab)
+    r = run(str(tmp_path / "v.tif"), str(tmp_path / "l.tif"), None, 1.0, 10, 1.0, "auto")
+    d = r["diagnostics"]
+    assert d["matched_offsets_vox"]["pairs"] >= 1
+    assert len(d["z_profile"]) == 30
+    assert isinstance(d["missed_nuclei"], list)

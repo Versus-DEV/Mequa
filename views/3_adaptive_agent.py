@@ -31,7 +31,9 @@ def numpy_be():
 
 with st.sidebar:
     st.header("Dataset")
-    source = st.selectbox("Source", ["Synthetic 3D blob", "Synthetic 2D blob", "Workspace dataset (editor or workbench)", "SAM cells (outputs/sam/cells.csv)"])
+    _opts = ["Workspace dataset (editor or workbench)", "Synthetic 3D blob", "Synthetic 2D blob", "SAM cells (outputs/sam/cells.csv)"]
+    source = st.selectbox("Source", _opts, index=0 if workspace.current(st.session_state) else 1,
+                          help="The workspace dataset is whatever you last loaded: from Image Lab, the Workbench or the Model Editor.")
     n = st.slider("Synthetic cells", 300, 3000, 1000, 100)
     knn = st.slider("Neighbors per cell", 4, 14, 8)
     st.header("Agent")

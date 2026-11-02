@@ -13,9 +13,9 @@ from streamlit.testing.v1 import AppTest  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 APP = str(ROOT / "app.py")
-PAGES = ["pages/0_workbench.py", "pages/1_sam_mechanics.py", "pages/2_two_machine_status.py", "pages/3_adaptive_agent.py",
-         "pages/3b_research_pivot.py", "pages/4_simulink_editor.py", "pages/5_mesh_viewer.py", "pages/6_solver_benchmark.py",
-         "pages/7_model_editor.py"]
+PAGES = ["views/0_workbench.py", "views/1_sam_mechanics.py", "views/2_two_machine_status.py", "views/3_adaptive_agent.py",
+         "views/3b_research_pivot.py", "views/4_simulink_editor.py", "views/5_mesh_viewer.py", "views/6_solver_benchmark.py",
+         "views/7_model_editor.py", "views/8_viewer.py", "views/9_image_lab.py"]
 
 
 @pytest.fixture(autouse=True)
@@ -49,7 +49,7 @@ def test_workbench_survives_foreign_results_in_session_state():
     at = _app()
     at.session_state["result"] = {"per_zone": [], "cells": 5}                 # what the SAM page used to leave behind
     at.session_state["wb_result"] = {"per_zone": [], "cells": 5}               # and even a malformed Workbench result
-    at.switch_page("pages/0_workbench.py").run()
+    at.switch_page("views/0_workbench.py").run()
     assert not at.exception, [e.value for e in at.exception]
     _btn(at.sidebar, "Run Analysis").click().run()
     assert not at.exception, [e.value for e in at.exception]
@@ -59,7 +59,7 @@ def test_workbench_survives_foreign_results_in_session_state():
 
 def test_simulink_editor_offline_uses_rules_and_says_so():
     at = _app()
-    at.switch_page("pages/4_simulink_editor.py").run()
+    at.switch_page("views/4_simulink_editor.py").run()
     _btn(at.sidebar, "Generate Block Spec").click().run()
     assert not at.exception, [e.value for e in at.exception]
     tr = at.session_state["translation"]
@@ -69,7 +69,7 @@ def test_simulink_editor_offline_uses_rules_and_says_so():
 
 def test_simulink_editor_offline_unparseable_text_gives_friendly_error():
     at = _app()
-    at.switch_page("pages/4_simulink_editor.py").run()
+    at.switch_page("views/4_simulink_editor.py").run()
     at.sidebar.text_area[0].set_value("make it nice").run()
     _btn(at.sidebar, "Generate Block Spec").click().run()
     assert not at.exception
@@ -78,7 +78,7 @@ def test_simulink_editor_offline_unparseable_text_gives_friendly_error():
 
 def test_model_editor_end_to_end():
     at = _app()
-    at.switch_page("pages/7_model_editor.py").run()
+    at.switch_page("views/7_model_editor.py").run()
     assert not at.exception
     at.sidebar.selectbox[0].set_value("Synthetic 3D blob").run()
     at.sidebar.slider[0].set_value(400)
@@ -112,7 +112,7 @@ def test_model_editor_end_to_end():
 
 def test_model_editor_delete_and_guards():
     at = _app()
-    at.switch_page("pages/7_model_editor.py").run()
+    at.switch_page("views/7_model_editor.py").run()
     at.sidebar.selectbox[0].set_value("Synthetic 3D blob").run()
     _btn(at.sidebar, "Load model").click().run()
     n0 = at.session_state["ed_model"].n
@@ -137,7 +137,29 @@ def test_cell_viewer_reads_the_edited_workspace_dataset():
     from mequa import numpy_backend as nb, workspace
     at = _app()
     workspace.publish(at.session_state, nb.synthetic_cells(300, seed=1, clusters=1, dim=3), None, label="x", source="test")
-    at.switch_page("pages/5_mesh_viewer.py").run()
+    at.switch_page("views/5_mesh_viewer.py").run()
     at.sidebar.selectbox[0].set_value("Workspace dataset (editor or workbench)")
     _btn(at.sidebar, "Load and Analyze").click().run()
     assert not at.exception, [e.value for e in at.exception]
+
+
+def test_image_lab_synthetic_stack_finds_cells_and_publishes_to_workspace():
+    from mequa import workspace
+
+    at = _app()
+    at.switch_page("views/9_image_lab.py").run()
+    assert not at.exception
+    at.sidebar.radio[0].set_value("Synthetic test stack").run()
+    assert any("made-up" in w.value for w in at.warning)          # synthetic data is labelled as such
+    _btn(at.main, "Find cells").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    ds = workspace.current(at.session_state)
+    assert ds is not None and ds.dim == 3 and ds.n >= 8 and ds.source == "Image Lab"
+
+
+def test_dock_follows_the_dataset_a_page_publishes():
+    at = _app()
+    at.switch_page("views/9_image_lab.py").run()
+    at.sidebar.radio[0].set_value("Synthetic test stack").run()
+    _btn(at.main, "Find cells").click().run()
+    assert any("cells" in (m.value if hasattr(m, "value") else "") and "no dataset" not in m.value for m in at.markdown if "mq-chat-sub" in m.value)

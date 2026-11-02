@@ -88,10 +88,11 @@ with st.sidebar:
     source = st.radio(
         "Source",
         [
-            "Demo masks",
             "Upload image",
+            "Demo masks",
             "Example image",
         ],
+        format_func=lambda x: {"Demo masks": "Demo masks (synthetic)", "Example image": "Example image (bundled)"}.get(x, x),
     )
 
     uploaded_file = None

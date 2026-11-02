@@ -15,6 +15,12 @@ input[type=range]{width:84px;accent-color:#0a0a0a;height:14px}label{display:flex
 #sel{position:absolute;right:10px;bottom:8px;display:flex;gap:6px;align-items:center;font:11px ui-monospace,Consolas,monospace;background:rgba(255,255,255,.9);padding:4px 6px;border-radius:8px}
 #rect{position:absolute;display:none;border:1px solid #0a0a0a;background:rgba(10,255,210,.15);pointer-events:none}
 #hint{position:absolute;left:100px;bottom:10px;font:10px ui-monospace,Consolas,monospace;color:var(--mute);pointer-events:none}
+body.green{--ink:#e6f2ea;--mute:#7c9185;--line:#1e2b23;--mint:#22e58b}
+body.green,body.green #app{background:#060a08}body.green #bar{background:#0a100d}
+body.green button,body.green select{background:#0a100d;color:#e6f2ea}body.green button.on{background:#22e58b;color:#000;border-color:#22e58b}
+body.green input[type=range]{accent-color:#22e58b}
+body.green #info,body.green #legend{color:#bcd0c4;background:rgba(6,10,8,.85)}body.green #sel{background:rgba(6,10,8,.9);color:#e6f2ea}
+body.green #rect{border-color:#22e58b;background:rgba(34,229,139,.15)}
 </style></head><body><div id="app">
 <div id="bar">
  <div class="grp"><span>Show</span><button data-rep="spheres">Spheres</button><button data-rep="ballstick">Ball+stick</button><button data-rep="points">Points</button><button data-rep="links">Links</button><button data-rep="hull">Hull</button></div>

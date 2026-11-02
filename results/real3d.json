@@ -4,9 +4,11 @@
     1344,
     1024
   ],
-  "detection_seconds": 59.4,
+  "detection_seconds": 109.9,
   "z_scale": 1.0,
   "units": "voxels (x, y, z*z_scale)",
+  "threshold_scale": 0.7,
+  "refine": false,
   "min_distance": "auto",
   "expert_labels": {
     "shape_zyx": [
@@ -19,16 +21,16 @@
     "median_radius_vox": 36.72,
     "axes_note": null,
     "detected_span": {
-      "n": 282,
+      "n": 9,
       "min_xyz": [
-        191.0,
-        259.0,
+        287.0,
+        412.0,
         15.0
       ],
       "max_xyz": [
-        676.0,
-        868.0,
-        23.0
+        670.0,
+        874.0,
+        16.0
       ]
     },
     "expert_span": {
@@ -48,42 +50,334 @@
   "detection_vs_expert_labels": {
     "radius_vox": 18.36,
     "radius_mode": "auto",
-    "detected": 282,
+    "detected": 9,
     "ground_truth": 15,
-    "tp": 10,
-    "fp": 272,
-    "fn": 5,
-    "precision": 0.0355,
-    "recall": 0.6667,
-    "f1": 0.0673,
-    "count_error_pct": 1780.0,
-    "median_center_error_vox": 8.774
+    "tp": 5,
+    "fp": 4,
+    "fn": 10,
+    "precision": 0.5556,
+    "recall": 0.3333,
+    "f1": 0.4167,
+    "count_error_pct": -40.0,
+    "median_center_error_vox": 8.494
   },
   "detection_inside_expert_nuclei": {
-    "detected": 282,
+    "detected": 9,
     "ground_truth": 15,
-    "tp": 15,
-    "fp": 267,
-    "fn": 0,
-    "precision": 0.0532,
-    "recall": 1.0,
-    "f1": 0.101,
-    "count_error_pct": 1780.0,
-    "splits": 258,
-    "detections_outside_nuclei": 9
+    "tp": 8,
+    "fp": 1,
+    "fn": 7,
+    "precision": 0.8889,
+    "recall": 0.5333,
+    "f1": 0.6667,
+    "count_error_pct": -40.0,
+    "splits": 0,
+    "detections_outside_nuclei": 1
+  },
+  "diagnostics": {
+    "matched_offsets_vox": {
+      "pairs": 7,
+      "median_dx": -0.74,
+      "median_dy": -2.99,
+      "median_dz": -6.6
+    },
+    "missed_nuclei": [
+      {
+        "label": 13107,
+        "centre_xyz": [
+          647.0,
+          512.7,
+          23.9
+        ],
+        "voxels": 200825,
+        "mean_intensity": 124.53,
+        "background_median": 14.0,
+        "nearest_detection_vox": 131.4
+      },
+      {
+        "label": 17476,
+        "centre_xyz": [
+          606.3,
+          302.6,
+          22.2
+        ],
+        "voxels": 266038,
+        "mean_intensity": 112.7,
+        "background_median": 14.0,
+        "nearest_detection_vox": 118.2
+      },
+      {
+        "label": 21845,
+        "centre_xyz": [
+          480.5,
+          369.6,
+          22.8
+        ],
+        "voxels": 229745,
+        "mean_intensity": 112.15,
+        "background_median": 14.0,
+        "nearest_detection_vox": 92.3
+      },
+      {
+        "label": 26214,
+        "centre_xyz": [
+          549.1,
+          473.5,
+          22.7
+        ],
+        "voxels": 264179,
+        "mean_intensity": 109.33,
+        "background_median": 14.0,
+        "nearest_detection_vox": 63.3
+      },
+      {
+        "label": 39321,
+        "centre_xyz": [
+          274.0,
+          607.3,
+          23.0
+        ],
+        "voxels": 184051,
+        "mean_intensity": 129.12,
+        "background_median": 14.0,
+        "nearest_detection_vox": 86.0
+      },
+      {
+        "label": 52428,
+        "centre_xyz": [
+          237.0,
+          679.4,
+          21.7
+        ],
+        "voxels": 183401,
+        "mean_intensity": 125.65,
+        "background_median": 14.0,
+        "nearest_detection_vox": 52.0
+      },
+      {
+        "label": 56797,
+        "centre_xyz": [
+          378.8,
+          746.1,
+          22.8
+        ],
+        "voxels": 215627,
+        "mean_intensity": 161.22,
+        "background_median": 14.0,
+        "nearest_detection_vox": 106.8
+      },
+      {
+        "label": 61166,
+        "centre_xyz": [
+          234.2,
+          776.9,
+          22.7
+        ],
+        "voxels": 220071,
+        "mean_intensity": 114.68,
+        "background_median": 14.0,
+        "nearest_detection_vox": 100.3
+      }
+    ],
+    "z_profile": [
+      {
+        "z": 0,
+        "mean_intensity": 25.01,
+        "expert_voxels": 0,
+        "detections": 0
+      },
+      {
+        "z": 1,
+        "mean_intensity": 24.86,
+        "expert_voxels": 0,
+        "detections": 0
+      },
+      {
+        "z": 2,
+        "mean_intensity": 24.73,
+        "expert_voxels": 0,
+        "detections": 0
+      },
+      {
+        "z": 3,
+        "mean_intensity": 24.63,
+        "expert_voxels": 0,
+        "detections": 0
+      },
+      {
+        "z": 4,
+        "mean_intensity": 24.52,
+        "expert_voxels": 0,
+        "detections": 0
+      },
+      {
+        "z": 5,
+        "mean_intensity": 24.43,
+        "expert_voxels": 0,
+        "detections": 0
+      },
+      {
+        "z": 6,
+        "mean_intensity": 24.27,
+        "expert_voxels": 0,
+        "detections": 0
+      },
+      {
+        "z": 7,
+        "mean_intensity": 24.16,
+        "expert_voxels": 0,
+        "detections": 0
+      },
+      {
+        "z": 8,
+        "mean_intensity": 24.08,
+        "expert_voxels": 0,
+        "detections": 0
+      },
+      {
+        "z": 9,
+        "mean_intensity": 24.05,
+        "expert_voxels": 0,
+        "detections": 0
+      },
+      {
+        "z": 10,
+        "mean_intensity": 24.08,
+        "expert_voxels": 0,
+        "detections": 0
+      },
+      {
+        "z": 11,
+        "mean_intensity": 24.21,
+        "expert_voxels": 1616,
+        "detections": 0
+      },
+      {
+        "z": 12,
+        "mean_intensity": 24.48,
+        "expert_voxels": 11527,
+        "detections": 0
+      },
+      {
+        "z": 13,
+        "mean_intensity": 24.96,
+        "expert_voxels": 14957,
+        "detections": 0
+      },
+      {
+        "z": 14,
+        "mean_intensity": 25.67,
+        "expert_voxels": 133328,
+        "detections": 0
+      },
+      {
+        "z": 15,
+        "mean_intensity": 26.59,
+        "expert_voxels": 133981,
+        "detections": 6
+      },
+      {
+        "z": 16,
+        "mean_intensity": 27.94,
+        "expert_voxels": 139729,
+        "detections": 3
+      },
+      {
+        "z": 17,
+        "mean_intensity": 29.11,
+        "expert_voxels": 145364,
+        "detections": 0
+      },
+      {
+        "z": 18,
+        "mean_intensity": 30.22,
+        "expert_voxels": 149102,
+        "detections": 0
+      },
+      {
+        "z": 19,
+        "mean_intensity": 31.2,
+        "expert_voxels": 157502,
+        "detections": 0
+      },
+      {
+        "z": 20,
+        "mean_intensity": 31.97,
+        "expert_voxels": 162807,
+        "detections": 0
+      },
+      {
+        "z": 21,
+        "mean_intensity": 32.57,
+        "expert_voxels": 166273,
+        "detections": 0
+      },
+      {
+        "z": 22,
+        "mean_intensity": 33.0,
+        "expert_voxels": 170297,
+        "detections": 0
+      },
+      {
+        "z": 23,
+        "mean_intensity": 33.25,
+        "expert_voxels": 171931,
+        "detections": 0
+      },
+      {
+        "z": 24,
+        "mean_intensity": 33.34,
+        "expert_voxels": 168374,
+        "detections": 0
+      },
+      {
+        "z": 25,
+        "mean_intensity": 33.24,
+        "expert_voxels": 170945,
+        "detections": 0
+      },
+      {
+        "z": 26,
+        "mean_intensity": 32.87,
+        "expert_voxels": 171127,
+        "detections": 0
+      },
+      {
+        "z": 27,
+        "mean_intensity": 31.88,
+        "expert_voxels": 166882,
+        "detections": 0
+      },
+      {
+        "z": 28,
+        "mean_intensity": 30.28,
+        "expert_voxels": 160150,
+        "detections": 0
+      },
+      {
+        "z": 29,
+        "mean_intensity": 27.83,
+        "expert_voxels": 157323,
+        "detections": 0
+      },
+      {
+        "z": 30,
+        "mean_intensity": 25.06,
+        "expert_voxels": 151326,
+        "detections": 0
+      },
+      {
+        "z": 31,
+        "mean_intensity": 23.49,
+        "expert_voxels": 149863,
+        "detections": 0
+      }
+    ]
   },
   "analysis_on_detected_cells": {
-    "n_components": 4,
-    "load_path": true,
-    "residual": 0.144,
-    "sphi": 0.075246,
-    "mean_strain": 0.00121,
-    "max_strain": 0.01294,
-    "cells": 282,
+    "cells": 9,
     "dim": 3,
     "knn": 10,
-    "strain_limit": 0.05,
-    "threshold_load_p95": null,
-    "sweep_seconds": 10.5719
+    "note": "only 9 cells detected, need more than knn+1=11 for the strain analysis"
   }
 }
