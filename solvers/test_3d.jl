@@ -3,6 +3,9 @@ include(joinpath(@__DIR__, "MequaCore3D.jl"))
 using .MequaCore3D
 
 dir = joinpath(@__DIR__, "..", "data", "examples")
+for f in ("ref3d_points.txt", "ref3d_edges.txt", "ref3d_pos.txt", "ref3d_node_strain.txt")
+    isfile(joinpath(dir, f)) || error("missing reference file $f in $dir. Run: python scripts/make_3d_reference.py")
+end
 points = readdlm(joinpath(dir, "ref3d_points.txt"))
 edges = Int.(readdlm(joinpath(dir, "ref3d_edges.txt"))) .+ 1
 expected_pos = readdlm(joinpath(dir, "ref3d_pos.txt"))
