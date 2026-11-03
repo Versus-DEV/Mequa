@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<XcosDiagram background="-1" title="first_order_with_gain">
+  <mxGraphModel as="model"><root>
+    <mxCell id="0:1:0"/><mxCell id="0:2:0" parent="0:1:0"/>
+    <BasicBlock id="b1" parent="0:2:0" interfaceFunctionName="STEP_FUNCTION" blockType="h" simulationFunctionName="csuper">
+      <SuperBlockDiagram as="child"><mxGraphModel as="model"><root>
+        <BasicBlock id="b1s" interfaceFunctionName="STEP" simulationFunctionName="step_func"><ScilabString as="exprs" height="3" width="1"><data column="0" line="0" value="0"/><data column="0" line="1" value="0"/><data column="0" line="2" value="2"/></ScilabString></BasicBlock>
+      </root></mxGraphModel></SuperBlockDiagram>
+    </BasicBlock>
+    <ExplicitOutputPort id="b1o" parent="b1" ordering="1"/>
+    <BasicBlock id="b2" parent="0:2:0" interfaceFunctionName="GAINBLK_f" simulationFunctionName="gain"><ScilabString as="exprs" height="1" width="1"><data column="0" line="0" value="3"/></ScilabString></BasicBlock>
+    <ExplicitInputPort id="b2i" parent="b2" ordering="1"/><ExplicitOutputPort id="b2o" parent="b2" ordering="1"/>
+    <BasicBlock id="b3" parent="0:2:0" interfaceFunctionName="CLR" simulationFunctionName="csslti4"><ScilabString as="exprs" height="2" width="1"><data column="0" line="0" value="1"/><data column="0" line="1" value="1+0.5*s"/></ScilabString></BasicBlock>
+    <ExplicitInputPort id="b3i" parent="b3" ordering="1"/><ExplicitOutputPort id="b3o" parent="b3" ordering="1"/>
+    <BasicBlock id="b4" parent="0:2:0" interfaceFunctionName="CSCOPE" simulationFunctionName="cscope"><ScilabString as="exprs" height="2" width="1"><data column="0" line="0" value="1"/><data column="0" line="1" value="2"/></ScilabString></BasicBlock>
+    <ExplicitInputPort id="b4i" parent="b4" ordering="1"/>
+    <ExplicitLink id="l1" parent="0:2:0" source="b1o" target="b2i"/>
+    <ExplicitLink id="l2" parent="0:2:0" source="b2o" target="b3i"/>
+    <ExplicitLink id="l3" parent="0:2:0" source="b3o" target="b4i"/>
+  </root></mxGraphModel>
+</XcosDiagram>
