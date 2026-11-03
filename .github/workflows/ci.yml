@@ -14,7 +14,7 @@ jobs:
       - name: Install MPI
         run: sudo apt-get update && sudo apt-get install -y openmpi-bin libopenmpi-dev
       - name: Install Python dependencies
-        run: pip install numpy scipy pandas pillow pytest maturin mpi4py
+        run: pip install numpy scipy pandas pillow plotly streamlit scikit-image tifffile opencv-python-headless fpdf2 psutil "mcp>=1.2,<2" pytest maturin mpi4py
       - name: Build the Rust module
         working-directory: rust
         run: |
