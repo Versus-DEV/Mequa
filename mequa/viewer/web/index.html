@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--ink:#0a0a0a;--mute:#8a8a8a;--line:#ededed;--mint:#0affd2}
+*{box-sizing:border-box}html,body{margin:0;background:#fff;font:12px/1.35 ui-sans-serif,system-ui,"Segoe UI",sans-serif;color:var(--ink)}
+#app{position:relative;width:100%;height:560px;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+#bar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);background:#fcfcfc}
+.grp{display:flex;align-items:center;gap:3px}.grp>span{font:600 9px/1 ui-monospace,Consolas,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-right:4px}
+button,select{font:500 11px/1 inherit;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;padding:5px 8px;cursor:pointer}
+button:hover,select:hover{border-color:var(--ink)}button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+input[type=range]{width:84px;accent-color:#0a0a0a;height:14px}label{display:flex;gap:4px;align-items:center;color:var(--mute)}
+#stage{position:relative;flex:1;min-height:0}canvas{width:100%;height:100%;display:block;outline:none;touch-action:none}
+#info{position:absolute;left:10px;top:8px;max-width:70%;font:11px/1.45 ui-monospace,Consolas,monospace;color:#444;background:rgba(255,255,255,.88);padding:5px 8px;border-radius:8px;pointer-events:none}
+#legend{position:absolute;right:10px;top:8px;width:160px;font:10px/1.4 ui-monospace,Consolas,monospace;color:#444;background:rgba(255,255,255,.88);padding:6px 8px;border-radius:8px;display:none}
+#legend .bar{height:7px;border-radius:4px;margin:4px 0}#legend .chip{display:inline-flex;align-items:center;margin:2px 6px 0 0}#legend i{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:3px}
+#sel{position:absolute;right:10px;bottom:8px;display:flex;gap:6px;align-items:center;font:11px ui-monospace,Consolas,monospace;background:rgba(255,255,255,.9);padding:4px 6px;border-radius:8px}
+#rect{position:absolute;display:none;border:1px solid #0a0a0a;background:rgba(10,255,210,.15);pointer-events:none}
+#hint{position:absolute;left:12px;bottom:46px;max-width:calc(100% - 24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:10px ui-monospace,Consolas,monospace;color:var(--mute);pointer-events:none}
+body.green{--ink:#e6f2ea;--mute:#7c9185;--line:#1e2b23;--mint:#22e58b}
+body.green,body.green #app{background:#060a08}body.green #bar{background:#0a100d}
+body.green button,body.green select{background:#0a100d;color:#e6f2ea}body.green button.on{background:#22e58b;color:#000;border-color:#22e58b}
+body.green input[type=range]{accent-color:#22e58b}
+body.green #info,body.green #legend{color:#bcd0c4;background:rgba(6,10,8,.85)}body.green #sel{background:rgba(6,10,8,.9);color:#e6f2ea}
+body.green #rect{border-color:#22e58b;background:rgba(34,229,139,.15)}
+</style></head><body><div id="app">
+<div id="bar">
+ <div class="grp"><span>Show</span><button data-rep="spheres">Spheres</button><button data-rep="ballstick">Ball+stick</button><button data-rep="points">Points</button><button data-rep="links">Links</button><button data-rep="hull">Hull</button></div>
+ <div class="grp"><span>Colour</span><select id="color"></select><span>Size</span><input id="size" type="range" min="0.4" max="2.4" step="0.05" value="1"></div>
+ <div class="grp"><span>Tool</span><button data-tool="orbit" title="O">Orbit</button><button data-tool="box" title="B (shift add, alt remove)">Box select</button><button data-tool="measure" title="M">Measure</button></div>
+ <div class="grp"><span>View</span><button data-view="top" title="1">Top</button><button data-view="front" title="2">Front</button><button data-view="side" title="3">Side</button><button data-view="iso" title="4">Iso</button><button id="persp">Persp</button><button id="fit" title="reset">Fit</button><button id="spin">Spin</button></div>
+ <div class="grp" id="loadrow"><span>Load</span><input id="t" type="range" min="0" max="100" value="100"><button id="play" title="Space">Play</button><label><input id="vec" type="checkbox">vectors</label></div>
+ <div class="grp"><span>Clip</span><select id="clipaxis"><option>off</option><option>x</option><option>y</option><option>z</option></select><input id="clippos" type="range" min="0" max="100" value="50"></div>
+ <div class="grp"><button id="shot">PNG</button></div>
+</div>
+<div id="stage"><canvas id="c" tabindex="0"></canvas><div id="info"></div><div id="legend"></div><div id="rect"></div>
+ <div id="sel"><span id="selcount">none selected</span><button id="fitsel">Focus</button><button id="inv">Invert</button><button id="clr">Clear</button></div>
+ <div id="hint">drag: orbit · wheel: zoom · B box-select · M measure · 1-4 views · R reset</div></div>
+</div><script src="viewer.bundle.js"></script></body></html>
