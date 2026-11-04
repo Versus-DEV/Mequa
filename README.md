@@ -13,7 +13,7 @@
 ![Julia](https://img.shields.io/badge/Julia-solver%20core-9558B2?logo=julia&logoColor=white)
 ![Rust](https://img.shields.io/badge/Rust-PyO3%20%2B%20rayon-000000?logo=rust&logoColor=white)
 ![MPI](https://img.shields.io/badge/MPI-sweep%20%2B%20domain%20decomposition-1F6FEB)
-![Models](https://img.shields.io/badge/Meta%20models-SAM%20%C2%B7%20Llama%20%C2%B7%20Llama%20Guard-0467DF?logo=meta&logoColor=white)
+![Models](https://img.shields.io/badge/Meta%20models-SAM%203.1%20%C2%B7%20Muse%20Spark%20%C2%B7%20Muse%20Wonder-0467DF?logo=meta&logoColor=white)
 ![CPU only](https://img.shields.io/badge/runs%20on-a%20laptop%2C%20no%20GPU-2EA043)
 ![Research only](https://img.shields.io/badge/scope-research%20data%20only-C0392B)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
@@ -49,7 +49,7 @@ Built solo for the **Meta Global AI Developer Hackathon** (Indie Dev Track · th
 15. [MCP server](#mcp-server)
 16. [Chat bots: WhatsApp and Messenger](#chat-bots-whatsapp-and-messenger)
 17. [3D viewer and model editor](#3d-viewer-and-model-editor)
-18. [Native launcher and two-machine mode](#native-launcher-and-two-machine-mode)
+18. [Native launcher](#native-launcher)
 19. [Measured results](#measured-results)
 20. [Quick start](#quick-start)
 21. [Command reference](#command-reference)
@@ -70,11 +70,11 @@ Researchers who study how tissue deforms under load spend days stitching one-off
 
 | Step | What happens | Powered by |
 |---|---|---|
-| 1. **Ingest** | Segment cells in a public research image, detect nuclei in a 3D stack, load a point-cloud CSV, or generate synthetic cells | **SAM** (Meta), scikit-image, SciPy |
-| 2. **Ask** | Describe the experiment in plain English; the model calls the solver as *tools*, sweeps the load, and finds where strain reaches a limit | **Llama 3.2 3B / 3.1 8B** (Meta, local) |
+| 1. **Ingest** | Segment cells in a public research image, detect nuclei in a 3D stack, load a point-cloud CSV, or generate synthetic cells | **SAM 3.1** (Meta, hosted), scikit-image, SciPy |
+| 2. **Ask** | Describe the experiment in plain English; the model calls the solver as *tools*, sweeps the load, and finds where strain reaches a limit | **Muse Spark 1.3 / Muse Wonder 1.0** (Meta, hosted) |
 | 3. **Compute** | k-means density zones, spring-network strain relaxation (2D and 3D), connectivity check, the SPHI metric, a logistic failure model | **Julia** + **Rust** + **NumPy**, cross-checked |
 | 4. **Couple** | Import a Simulink `.slx` or Scilab `.xcos` model (no MATLAB needed); its output signal drives the solver | Original importer + RK4 simulator |
-| 5. **Guard** | Every request and every generated reply passes a three-layer firewall that blocks individual-level medical guidance | Rules + **Llama Guard 3** + **Llama 3.2** intent classifier |
+| 5. **Guard** | Every request and every generated reply passes a three-layer firewall that blocks individual-level medical guidance | Rules + **Muse Spark (Guard)** + **Muse Spark** intent classifier |
 
 Mequa **never** gives diagnosis, prognosis, or treatment guidance for any individual. It is an instrument for datasets, cohorts, and simulations.
 
@@ -102,7 +102,7 @@ Mequa's answer is a single workspace, in the spirit of a trading terminal: *imag
 ```mermaid
 flowchart LR
     subgraph IN["Ingest"]
-        A1["Research image<br/>(2D)"] -->|SAM| P
+        A1["Research image<br/>(2D)"] -->|SAM 3.1| P
         A2["3D z-stack<br/>(BBBC033-style)"] -->|"smooth, Otsu,<br/>distance transform,<br/>h-maxima"| P
         A3["Point-cloud CSV"] --> P
         A4["Synthetic cells"] --> P
@@ -112,7 +112,7 @@ flowchart LR
     subgraph MODEL["Model in"]
         M1["Simulink .slx"] --> S
         M2["Xcos .xcos"] --> S
-        M3["Plain English"] -->|"Llama to block spec,<br/>validated"| S
+        M3["Plain English"] -->|"Muse to block spec,<br/>validated"| S
         S["Simulated<br/>load signal"]
     end
 
@@ -126,14 +126,14 @@ flowchart LR
     S -->|drives load| R
 
     subgraph LLM["Ask"]
-        Q["Plain-English question"] --> AG["Llama tool-calling<br/>investigator"]
+        Q["Plain-English question"] --> AG["Muse tool-calling<br/>investigator"]
         AG -->|"run / sweep / re-run"| CORE
         CORE -->|numbers| AG
         AG --> GR{"Number-grounding<br/>check"}
         GR -->|"ungrounded: rewrite,<br/>then template"| AG
     end
 
-    FW["Compliance firewall<br/>rules + Llama Guard + Llama intent"]
+    FW["Compliance firewall<br/>rules + Muse Guard + Muse intent"]
     Q -. "every request" .-> FW
     GR -. "every reply" .-> FW
 ```
@@ -175,12 +175,12 @@ Mequa uses a **three-language design**: each language does the job it is best at
 
 | Model | Where it runs | Role in Mequa |
 |---|---|---|
-| **SAM** (ViT-B, open weights) | Local (PyTorch, CPU) | Cell segmentation from research images; shape features (area, etc.) feed per-cell stiffness |
-| **Llama 3.2 3B** | Local (Ollama) | Tool-calling investigator, plain-English → block specification, result summary, and the **request-intent classifier** inside the firewall |
-| **Llama 3.1 8B** | Local (Ollama) | Optional larger planner/investigator (`PLANNER_MODEL`) |
-| **Llama Guard 3 1B** | Local (Ollama) | Request and reply safety screening; Mequa blocks on category **S6** (specialized advice) |
+| **SAM 3.1** | Hosted (Meta Model API) | Cell segmentation from research images; shape features feed per-cell stiffness. (Falls back to local ViT-B if the API is unavailable) |
+| **Muse Spark 1.3** | Hosted (Meta Model API) | Tool-calling investigator, plain-English → block specification, result summary, and the **request-intent classifier** inside the firewall |
+| **Muse Wonder 1.0** | Hosted (Meta Model API) | Optional larger planner/investigator (`META_PLANNER_MODEL`) for complex experiment planning |
+| **Muse Spark (Guard)** | Hosted (Meta Model API) | Request and reply safety screening via strict JSON parsing; Mequa blocks on category **S6** (specialized advice) |
 
-**No non-Meta model is called at runtime.** Because everything is open-weight and local, research images and prompts never leave the machine.
+**No non-Meta model is called at runtime.** By using the Meta Model API, Mequa delivers frontier-model performance on an ordinary laptop without requiring local GPU inference or large model downloads. Because the models are hosted, prompts and images sent to them leave the machine; see [Limitations](#limitations-read-this).
 
 Mequa also integrates with Meta's messaging platforms (see [Chat bots](#chat-bots-whatsapp-and-messenger)) and can export any conversation as a paste-ready block for Meta AI.
 
@@ -198,11 +198,11 @@ Launch with `streamlit run app.py`. The clean, light workspace has a status rail
 | | **3D Viewer** | WebGL: orbit, select, clip and measure cell models and PDB / XYZ molecules |
 | | **Cell Viewer** | Quick 3D view of the current dataset |
 | | **Model Editor** | Edit a cell model in three views, set stiffness, re-solve |
-| **Intelligence** | **Adaptive Agent** | Llama calls the solver as tools, sweeps loads, writes a number-checked summary |
+| **Intelligence** | **Adaptive Agent** | Muse calls the solver as tools, sweeps loads, writes a number-checked summary |
 | | **Compliance Firewall** | Try a request; see which layer blocked it and why |
 | | **Simulink Editor** | Plain English → validated block spec → simulation |
 | **System** | **Benchmarks** | Measured solver and MPI scaling with the machine that produced them |
-| | **Machines** | Choose where the firewall runs; health-check both nodes |
+| | **Machines** | Health-check the Meta Model API connection and local environment |
 
 ---
 
@@ -280,7 +280,7 @@ python -m mequa.domain_scaling      # repeated, interleaved timing with a noise 
 
 | Source | Method | Notes |
 |---|---|---|
-| **2D research image** | **SAM** automatic masks on a point-prompt grid → cell centres + shape features | Prompt grid is a setting, not a default: coarse and fine grids trade recall for speed |
+| **2D research image** | **SAM 3.1** concept-prompted segmentation ("all cells") → cell centres + shape features | Hosted via Meta Model API. Falls back to a local ViT-B point-prompt grid if the API is unavailable. |
 | **3D z-stack** | Smooth → Otsu → distance transform → **h-maxima** (one marker per nucleus) | 16-bit TIFF and multi-page stacks supported; percentile stretch; watershed splitting of touching cells |
 | **Point-cloud CSV** | Direct load | |
 | **Synthetic cells** | Seeded multi-cluster generator | Used for tests and scaling runs |
@@ -297,7 +297,7 @@ Systems models often describe the *load* a tissue sees (for example a blood-pres
 
 - **Simulink `.slx` without MATLAB** (`mequa/simulink.py`): reads the file, evaluates block parameters with a **restricted math parser**, and simulates the diagram with a fixed-step **RK4** solver (10 block types).
 - **Scilab Xcos `.xcos`** (`mequa/blockspec/xcos_reader.py`): a free alternative path.
-- **Plain English → block spec** (`mequa/blockspec/`): Llama names a *standard form and its parameters* (for example "second-order, natural frequency 2, damping 0.3"); **program code does the arithmetic**, and a **validator rejects anything unsupported, with a reason**, before it is simulated.
+- **Plain English → block spec** (`mequa/blockspec/`): Muse names a *standard form and its parameters* (for example "second-order, natural frequency 2, damping 0.3"); **program code does the arithmetic**, and a **validator rejects anything unsupported, with a reason**, before it is simulated.
 - **Coupling:** `python -m mequa.slx_cli --demo --couple` imports a generated 2-element **Windkessel** model and uses its pressure signal to drive the strain solver quasi-statically.
 
 *The Xcos reader is tested on hand-built files in the documented layout, not on files exported by Scilab. Simulink coverage is a small block subset.*
@@ -306,7 +306,7 @@ Systems models often describe the *load* a tissue sees (for example a blood-pres
 
 ## An agent that is not allowed to make numbers up
 
-The **Adaptive Agent** (`mequa/agents/adaptive_investigator.py`) lets Llama act as a computational scientist: run the solver, read results, decide what to run next.
+The **Adaptive Agent** (`mequa/agents/adaptive_investigator.py`) lets Muse act as a computational scientist: run the solver, read results, decide what to run next.
 
 - **The model never computes physics.** Every number comes from the verified solver via tool calls.
 - **Tool arguments are validated and clamped; the loop is bounded.**
@@ -332,8 +332,8 @@ Mequa is a research tool. The firewall is how that is *enforced*, not just state
 | Layer | Mechanism | Strength |
 |---|---|---|
 | 1. **Rules** | Regular expressions (patient/treatment/dose phrasing, "my tumour/scan/biopsy", dosage units, "should I take...") | Fast, transparent, brittle on its own |
-| 2. **Llama Guard 3 1B** | Blocks on category **S6** (specialized advice) | Catches advice requests; other categories are treated as flags because they false-positive on words like "load" and "benchmark" |
-| 3. **Llama 3.2 intent classifier** | Few-shot `clinical_advice` vs `research_analysis` with the definition that dataset/cohort mentions of tumours or cells are research | Strongest single layer |
+| 2. **Muse Spark (Guard)** | Strict JSON parsing; blocks on category **S6** (specialized advice) | Catches advice requests; other categories are treated as flags because they false-positive on words like "load" and "benchmark" |
+| 3. **Muse Spark intent classifier** | Few-shot `clinical_advice` vs `research_analysis` with the definition that dataset/cohort mentions of tumours or cells are research | Strongest single layer |
 
 Replies are re-checked before display. A clinical request halts with a red status; a research request clears green.
 
@@ -343,9 +343,9 @@ Replies are re-checked before display. A clinical request halts with a red statu
 |---|---|---|
 | Round 3 (30 queries: 15 research, 15 clinical) | **Blocked 15/15 clinical, wrongly blocked 0/15 research** | Written before first run (partly informed by earlier rounds) |
 | Round 5 (adversarial English: role-play, injection, disguised requests; 15 clinical, 12 research) | **15/15 blocked, 0/12 wrongly blocked** | Adversarial |
-| Leave-one-layer-out ablation, round 3 | Without the Llama intent layer: **8/15** | Shows what each layer is responsible for |
-| Leave-one-layer-out ablation, round 5 | Without the Llama intent layer: **13/15** | |
-| Single layers, round 3 | Intent alone 15/15 · Llama Guard S6 alone 7/15 · rules alone 2/15 | |
+| Leave-one-layer-out ablation, round 3 | Without the intent layer: **8/15** | Shows what each layer is responsible for |
+| Leave-one-layer-out ablation, round 5 | Without the intent layer: **13/15** | |
+| Single layers, round 3 | Intent alone 15/15 · Guard S6 alone 7/15 · rules alone 2/15 | |
 
 > **Caveats, stated plainly:** the sets are small and written by the author (a perfect 15/15 still allows a true miss rate of up to ~20%); the firewall is **English only**; if the guard model is unreachable the verdict is marked `degraded`. The full table, including every round, is generated into `results/RESULTS.md`.
 
@@ -406,14 +406,12 @@ Setup: [`docs/BOT_SETUP.md`](docs/BOT_SETUP.md), [`docs/MESSENGER_SETUP.md`](doc
 
 ---
 
-## Native launcher and two-machine mode
+## Native launcher
 
-**Rust launcher** (`launcher/`): a native window that starts and stops the dashboard and Ollama, shows live status for each, streams their logs, and opens the browser. Build with `cd launcher && ./build.sh` (or `.\build.ps1` on Windows). No Rust? `Start_Mequa.bat` is a fallback.
-
-**Two-machine mode** ([`README_2_MACHINE.md`](README_2_MACHINE.md)): run the dashboard, SAM, solver and planner on a main laptop, and **Llama Guard plus the intent classifier on a second laptop** on the local network. Guard mode is `auto`, `dedicated` or `main`. This is *not* RAM pooling; it is a small local cluster, and it must not be exposed to the public internet (`NETWORK_MODE=local_only`).
+**Rust launcher** (`launcher/`): a native window that starts the dashboard, checks for the `META_API_KEY`, shows live status, streams logs, and opens the browser. Build with `cd launcher && ./build.sh` (or `.\build.ps1` on Windows). No Rust? `Start_Mequa.bat` is a fallback.
 
 ```bash
-python -m mequa.envcheck           # check both nodes
+python -m mequa.envcheck           # check environment and API connection
 python -m mequa.doctor             # environment diagnosis
 ```
 
@@ -441,20 +439,19 @@ Since then Julia gained a grid neighbour search (identical results, ~2.7x faster
 
 ## Quick start
 
-**Requirements:** Python 3.12, [Julia](https://julialang.org/downloads/), [Ollama](https://ollama.com), and (optionally) Rust (`rustup.rs`) and an MPI runtime. Windows and Linux were tested; macOS was not.
+**Requirements:** Python 3.12, [Julia](https://julialang.org/downloads/), a Meta Model API key, and (optionally) Rust (`rustup.rs`) and an MPI runtime. Windows and Linux were tested; macOS was not.
 
 ```bash
 # 1. Python dependencies
 pip install -r requirements.txt
-# CPU PyTorch (needed for SAM)
+# CPU PyTorch (needed only if falling back to local SAM ViT-B)
 python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
-# 2. Meta models (local, via Ollama)
-ollama pull llama3.2:3b
-ollama pull llama3.1:8b
-ollama pull llama-guard3:1b
+# 2. Configure Meta Model API
+# Copy .env.example to .env and set your META_API_KEY
+# Set SAM_BACKEND=api to use hosted SAM 3.1 (default is 'auto' which falls back to local ViT-B)
 
-# 3. SAM checkpoint
+# 3. Optional: local SAM ViT-B checkpoint (only for the offline fallback)
 python scripts/download_sam_checkpoint.py
 
 # 4. Optional: build the Rust kernel
@@ -468,7 +465,7 @@ python -m pytest -q
 streamlit run app.py          # or double-click Start_Mequa.bat on Windows
 ```
 
-Copy `.env.example` to `.env` to choose models and the guard machine. Optional MPI: install the MS-MPI runtime and SDK (Windows) or OpenMPI (Linux), then `pip install mpi4py`.
+Optional MPI: install the MS-MPI runtime and SDK (Windows) or OpenMPI (Linux), then `pip install mpi4py`.
 
 ### 60-second tour for judges
 
@@ -494,7 +491,7 @@ Copy `.env.example` to `.env` to choose models and the guard machine. Optional M
 | `python -m mequa.mpi_scaling` | Load-sweep scaling with interleaved repeats |
 | `python -m mequa.real3d --volume <zip> --gt <tif> --out results/real3d.json` | Real 3D nuclei → strain (BBBC033) |
 | `python -m mequa.eval_firewall` / `eval_all` / `eval_heldout` | Firewall evaluation rounds |
-| `python -m mequa.eval_agent --models llama3.2:3b llama3.1:latest ...` | Agent evaluation |
+| `python -m mequa.eval_agent --models muse-spark-1.3 muse-wonder ...` | Agent evaluation |
 | `python -m mequa.eval_segmentation` / `eval_blockspec` | Segmentation and block-spec evaluation |
 | `python -m mequa.make_report` | Regenerate the measured-results section and `results/RESULTS.md` |
 | `python -m mequa.mcp_server` | Start the MCP server |
@@ -519,7 +516,7 @@ Mequa/
 │   ├── ingest.py · imagelab.py · real3d.py · vision/        SAM + image → cells
 │   ├── physics/                                             stiffness from geometry
 │   ├── simulink.py · blockspec/                             .slx / .xcos / plain English
-│   ├── agent.py · agents/                                   Llama tool-calling + grounding
+│   ├── agent.py · agents/                                   Muse tool-calling + grounding
 │   ├── firewall.py · guard/ · mcp_server.py                 safety + MCP
 │   ├── mpi_sweep.py · mpi_scaling.py · domain_mpi.py · domain_scaling.py
 │   ├── viewer/ · editor/ · ui/ · chat.py · export_chat.py
@@ -564,7 +561,7 @@ Mequa/
 |---|---|
 | **New work only** | Repository created Oct 28, 2026; every file written during the event |
 | **Open source** | Public repository, MIT licence |
-| **Meta models incorporated** | SAM, Llama 3.x, Llama Guard 3 each have a real job ([table](#meta-models-and-what-each-one-does)) |
+| **Meta models incorporated** | Muse Spark 1.3, Muse Wonder, and SAM 3.1 via the Meta Model API each have a real job ([table](#meta-models-and-what-each-one-does)) |
 | **Not medical advice** | Three-layer firewall; evaluation reported with ablation |
 | **Not a basic RAG app** | No retrieval; models drive a numerical solver |
 | **Not a simple image analyzer** | Segmentation feeds a mechanics solver, an agent loop and a model importer |
@@ -584,11 +581,11 @@ Mequa is deliberately honest about what it is not.
 - **Failure probability is a simulation output**, not a prediction.
 - **The firewall is English only**, and its evaluation sets are small and author-written.
 - **The agent was measured on synthetic meshes**, not on a real mesh from an image; the image-to-strain path is shown on one public image.
-- **CPU only.** There is no GPU or CUDA path. Zero-copy covers CPU memory. (No GPU to test so had to delibrately leave it)
+- **Needs internet and an API key for the language and vision models.** Prompts and images sent to the Meta Model API leave the machine. The solvers, MPI, viewer and Simulink import work offline; segmentation can fall back to local SAM ViT-B.
+- **CPU only.** There is no GPU or CUDA path. Zero-copy covers CPU memory. (No GPU to test so had to deliberately leave it)
 - **Rust neighbour search is 2D only**; 3D edges come from SciPy's k-d tree.
 - **Domain-decomposed MPI matches serial but is not always faster**; speedup depends on size and machine.
 - **Simulink coverage is a small block subset**; the Xcos reader is tested on hand-built files.
-- **CPU inference makes an agent run take around a minute**, and the first call after startup is slower while the model loads.
 - **Windows and Linux were tested; macOS was not.**
 
 ---
@@ -603,7 +600,6 @@ Planned, **not built**, and not claimed anywhere above:
 | **AVX-512 / explicit SIMD tuning** | Not started |
 | **Monte Carlo and wider stochastic modules** | Not started (Markov estimation exists in the Julia core) |
 | **Native VTK / PyVista / DICOM pipelines** | Not started (a WebGL viewer ships today) |
-| **Meta Model API (Muse) integration** for hosted agents | Not started; today everything runs locally |
 | **Validated constitutive models** (beyond the spring network) | Future research |
 | **Mesh agent evaluation**, multilingual firewall, macOS support | Future work |
 | **A one-command build** across platforms | Future work |
@@ -612,7 +608,7 @@ Planned, **not built**, and not claimed anywhere above:
 
 ## Third-party software
 
-Julia, juliacall, NumPy, SciPy, scikit-image, tifffile, pandas, Pillow, Plotly, Streamlit, mpi4py, PyO3, rust-numpy, rayon, eframe, Ollama, segment-anything, PyTorch, the MCP Python SDK, fpdf2. **Models:** Llama, Llama Guard and SAM from Meta, used as released. Mequa's own contribution is how these pieces are combined, verified and guarded, plus all code in this repository.
+Julia, juliacall, NumPy, SciPy, scikit-image, tifffile, pandas, Pillow, Plotly, Streamlit, mpi4py, PyO3, rust-numpy, rayon, eframe, segment-anything, PyTorch, the MCP Python SDK, fpdf2, meta-sam-parser. **Models:** Muse Spark, Muse Wonder, and SAM 3.1 from Meta, used via the Meta Model API. (Ollama is retained only as a legacy local fallback.) Mequa's own contribution is how these pieces are combined, verified and guarded, plus all code in this repository.
 
 ---
 
