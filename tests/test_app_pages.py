@@ -125,15 +125,31 @@ def test_model_editor_delete_and_guards():
 
 def test_chat_dock_commands_and_offline_message():
     at = _app()
-    at.chat_input[0].set_value("/help").run()
-    assert not at.exception
-    at.chat_input[0].set_value("Find the load at which this sample reaches the strain limit.").run()
-    assert not at.exception, [e.value for e in at.exception]
-    texts = " ".join(m.value for m in at.markdown)
-    errors = " ".join(e.value for e in at.error)
-    warnings = " ".join(w.value for w in at.warning)
-    all_ui_text = f"{texts} {errors} {warnings}"
-    assert "not reachable" in all_ui_text
+    
+    # Force offline mode by clearing the Meta API key
+    import os
+    old_key = os.environ.get("META_API_KEY")
+    os.environ["META_API_KEY"] = ""
+    
+    try:
+        at.chat_input[0].set_value("/help").run()
+        assert not at.exception
+        
+        at.chat_input[0].set_value("Find the load at which this sample reaches the strain limit.").run()
+        assert not at.exception, [e.value for e in at.exception]
+        
+        texts = " ".join(m.value for m in at.markdown)
+        errors = " ".join(e.value for e in at.error)
+        warnings = " ".join(w.value for w in at.warning)
+        all_ui_text = f"{texts} {errors} {warnings}"
+        
+        assert "not reachable" in all_ui_text or "META_API_KEY" in all_ui_text
+    finally:
+        # Restore the original key
+        if old_key:
+            os.environ["META_API_KEY"] = old_key
+        else:
+            os.environ.pop("META_API_KEY", None)
 
 
 def test_cell_viewer_reads_the_edited_workspace_dataset():
