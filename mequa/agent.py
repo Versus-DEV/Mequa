@@ -10,7 +10,15 @@ from mequa.agents.number_grounding import template_summary, ungrounded_numbers
 from mequa.firewall import _ollama_chat, check_reply, check_request
 from mequa.session import ensure_connectivity
 
-PLANNER_MODEL = os.environ.get("PLANNER_MODEL", "llama3.2:3b")
+def _default_planner_model():
+    from mequa.agents import meta_client
+
+    if meta_client.provider() == "meta":
+        return meta_client.get_planner_model()
+    return os.environ.get("PLANNER_MODEL", "llama3.2:3b")
+
+
+PLANNER_MODEL = _default_planner_model()
 
 PLAN_SYSTEM = (
     "You plan numerical experiments for Mequa, a research workbench that analyzes cell point clouds. "

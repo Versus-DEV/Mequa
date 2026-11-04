@@ -1,6 +1,9 @@
 """SAM loader for Mequa.
 
-This module loads Segment Anything and produces masks.
+Backend "local" loads Segment Anything ViT-B weights on CPU and produces
+masks with a point grid. Backend "api" segments with hosted SAM 3.1 through
+the Meta Model API (concept-prompted, no local weights). "auto" (default)
+uses the API when configured and falls back to local weights.
 It is intentionally CPU-first and hackathon-safe.
 """
 
@@ -41,10 +44,17 @@ class SamLoader:
         stability_score_thresh: float = 0.70,
         min_mask_region_area: int = 100,
         torch_threads: int = 4,
+        backend: Optional[str] = None,
+        concept: str = "cell",
     ) -> None:
+        backend = backend or os.getenv("SAM_BACKEND", "auto")
+        if backend not in ("auto", "api", "local"):
+            raise ValueError("backend must be one of 'auto', 'api', 'local'")
         self._checkpoint_path = checkpoint_path
         self._model_type = model_type
         self.device = device
+        self.backend = backend
+        self.concept = concept
 
         self.max_image_side = max_image_side
         self.max_masks = max_masks
@@ -98,8 +108,27 @@ class SamLoader:
 
         return "vit_b"
 
+    def _api_available(self) -> Tuple[bool, str]:
+        from mequa.vision import sam31
+
+        return sam31.is_available()
+
+    def _use_api(self) -> bool:
+        if self.backend == "api":
+            return True
+        if self.backend == "local":
+            return False
+        ok, _ = self._api_available()
+        return ok
+
     def is_available(self) -> Tuple[bool, str]:
         """Cheap availability check without loading the full model."""
+        if self._use_api():
+            ok, msg = self._api_available()
+            if ok:
+                return True, msg
+            if self.backend == "api":
+                return False, msg
         checkpoint = self.checkpoint_path
 
         if not checkpoint.exists():
@@ -162,7 +191,7 @@ class SamLoader:
         )
 
     def generate_masks(self, image_rgb: np.ndarray) -> SamResult:
-        """Generate SAM masks from an RGB image."""
+        """Generate masks from an RGB image (SAM 3.1 API or local SAM)."""
         from .image_io import resize_max_side
 
         image = np.asarray(image_rgb)
@@ -174,6 +203,16 @@ class SamLoader:
             image = resize_max_side(image, self.max_image_side)
 
         image = np.ascontiguousarray(image, dtype=np.uint8)
+
+        if self._use_api():
+            from mequa.vision import sam31
+
+            try:
+                return sam31.segment_image_api(image, concept=self.concept)
+            except (OSError, RuntimeError):
+                if self.backend == "api":
+                    raise
+                # auto: fall through to local SAM below.
 
         self.load()
 

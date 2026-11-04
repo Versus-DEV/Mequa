@@ -18,7 +18,7 @@ from mequa import ui  # noqa: E402
 
 load_env_file()
 
-ui.page_header('Compliance Firewall', 'Three layers on every request: rules, Llama Guard (blocks on S6) and a Llama intent classifier.')
+ui.page_header('Compliance Firewall', 'Three layers on every request: rules, a Meta guard check (blocks on S6) and an intent classifier.')
 
 with st.sidebar:
     st.header("Request")
@@ -34,7 +34,7 @@ if check:
         try:
             st.session_state["fw"] = pivot_to_research(prompt)
         except OSError as exc:
-            st.session_state["fw"] = {"decision": "error", "message": f"Ollama is not reachable: {exc}"}
+            st.session_state["fw"] = {"decision": "error", "message": f"Language model is not reachable: {exc}"}
 
 result = st.session_state.get("fw")
 if result is None:
@@ -46,7 +46,7 @@ if result["decision"] == "allowed":
     if result.get("degraded"):
         st.warning("A layer was unreachable, so this decision used fewer than three layers.")
     if result.get("flags"):
-        st.caption(f"Flagged by Llama Guard (not blocking): {result['flags']}")
+        st.caption(f"Flagged by the guard check (not blocking): {result['flags']}")
 elif result["decision"] == "blocked":
     st.error("BLOCKED. " + result["message"])
     st.caption(f"Blocked by: {', '.join(result['blocked_by'])}")

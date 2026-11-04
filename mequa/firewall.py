@@ -5,9 +5,27 @@ import urllib.request
 from dataclasses import dataclass, field
 
 OLLAMA_CHAT_URL = "http://localhost:11434/api/chat"
-GUARD_MODEL = "llama-guard3:1b"
-INTENT_MODEL = "llama3.2:3b"
+GUARD_MODEL = os.environ.get("META_GUARD_MODEL", "muse-spark-1.3")
+INTENT_MODEL = os.environ.get("META_PLANNER_MODEL", os.environ.get("META_GUARD_MODEL", "muse-wonder"))
 BLOCK_CATEGORIES = {"S6"}
+
+# Ollama model tags that predate the Meta migration. When the firewall is asked
+# for one of these (or nothing at all), the Meta equivalent is used instead so
+# old call sites and stored configs keep working.
+_LEGACY_MODELS = {"llama-guard3:1b", "llama3.2:3b", "llama3.1:latest", "llama3.1:8b"}
+
+GUARD_SYSTEM = (
+    "You are the Mequa compliance guard for a numerical research workbench. "
+    "Decide whether the user request (and any assistant reply) asks for clinical, "
+    "diagnostic, treatment, medication, dosage, surgery, test-interpretation, symptom, "
+    "or individual health guidance about a specific person. "
+    "Mentions of tumors, cells, or disease as part of a dataset, cohort, mesh, or "
+    "simulation are NOT clinical. "
+    'Reply with ONLY strict JSON: {"blocked": true|false, "category": "S6"|"none", '
+    '"reason": "short reason"}. Set blocked=true exactly when the content asks for '
+    "individual health guidance (category S6). Anything else is blocked=false, "
+    'category "none". No other text.'
+)
 
 RULE_PATTERNS = [
     re.compile(r"\b(treat|treatment|cure|operate on|prescribe|diagnose)\b.*\b(patient|my|his|her|their)\b", re.IGNORECASE),
@@ -62,7 +80,37 @@ def _chat_url(node):
     return (base or "http://localhost:11434").rstrip("/") + "/api/chat"
 
 
+def _resolve_model(model, node="main"):
+    """Map legacy Ollama tags to the configured Meta model; pass Muse names through."""
+    from mequa.agents import meta_client
+
+    if not model or model in _LEGACY_MODELS:
+        if node == "guard":
+            return meta_client.get_guard_model()
+        return meta_client.get_agent_model()
+    return model
+
+
 def _ollama_chat(model, messages, timeout=300, fmt=None, num_predict=None, node="main"):
+    """Same signature as the old Ollama call (tests monkeypatch this name).
+
+    On the Meta path this forwards to mequa.agents.meta_client and returns the
+    reply text; transport failures raise OSError so the callers' fail-closed
+    and degraded paths trigger exactly as before.
+    """
+    from mequa.agents import meta_client
+
+    if meta_client.provider() == "meta":
+        out = meta_client.chat(
+            messages=messages,
+            model=_resolve_model(model, node),
+            temperature=0.0,
+            max_tokens=num_predict or 256,
+            timeout=min(timeout, meta_client.get_timeout(60.0)),
+        )
+        if "error" in out:
+            raise OSError(out["error"])
+        return (out["message"].get("content") or "").strip()
     options = {"temperature": 0}
     if num_predict:
         options["num_predict"] = num_predict
@@ -84,6 +132,38 @@ def _ollama_chat(model, messages, timeout=300, fmt=None, num_predict=None, node=
         return json.loads(resp.read().decode("utf-8"))["message"]["content"].strip()
 
 
+def _parse_guard_output(raw):
+    """Return (unsafe, categories). Accepts the strict JSON guard format and the
+    legacy Llama Guard text format ("safe" / "unsafe\\nS6"). Anything
+    unparseable or hallucinated FAILS CLOSED: (True, ["S6"])."""
+    text = (raw or "").strip()
+    start, end = text.find("{"), text.rfind("}") + 1
+    if start != -1 and end > start:
+        try:
+            data = json.loads(text[start:end])
+        except ValueError:
+            data = None
+        if isinstance(data, dict) and isinstance(data.get("blocked"), bool):
+            category = str(data.get("category", "none")).upper()
+            if data["blocked"]:
+                return True, [category if re.fullmatch(r"S\d+", category) else "S6"]
+            if category in ("NONE", ""):
+                return False, []
+            # blocked=false but a category was named: flag it without blocking.
+            return False, [category]
+        return True, ["S6"]
+    # Legacy Llama Guard plain text ("safe", "unsafe\\nS1 S6", ...).
+    if not text:
+        return True, ["S6"]
+    first = text.split()[0].lower()
+    categories = re.findall(r"S\d+", text)
+    if first == "unsafe":
+        return True, categories or ["S6"]
+    if first == "safe":
+        return False, []
+    return True, ["S6"]
+
+
 def rules_check(text):
     for pattern in RULE_PATTERNS:
         if pattern.search(text):
@@ -92,13 +172,13 @@ def rules_check(text):
 
 
 def guard_check(text, reply=None):
-    messages = [{"role": "user", "content": text}]
+    messages = [{"role": "system", "content": GUARD_SYSTEM}]
+    messages.append({"role": "user", "content": text})
     if reply is not None:
         messages.append({"role": "assistant", "content": reply})
-    raw = _ollama_chat(GUARD_MODEL, messages, node="guard")
-    first = raw.split()[0].lower() if raw else ""
-    categories = re.findall(r"S\d+", raw)
-    return first == "unsafe", categories, raw
+    raw = _ollama_chat(GUARD_MODEL, messages, fmt="json", num_predict=60, node="guard")
+    unsafe, categories = _parse_guard_output(raw)
+    return unsafe, categories, raw
 
 
 def intent_check(text):

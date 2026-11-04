@@ -136,12 +136,12 @@ with tab_agent:
         if points is None:
             st.warning("Load data first.")
         else:
-            with st.spinner("Llama is planning, Julia is computing..."):
+            with st.spinner("The model is planning, Julia is computing..."):
                 try:
                     out = agent_mod.run_agent(request, points=points, backend=be)
                 except OSError:
                     out = None
-                    st.error("Ollama is not reachable. Start it and pull llama3.2:3b and llama-guard3:1b.")
+                    st.error("The language model is not reachable. Set META_API_KEY and META_BASE_URL, then try again.")
             if out is not None:
                 if out["status"] == "blocked":
                     st.markdown(
@@ -173,7 +173,7 @@ with tab_guard:
             else:
                 st.markdown(f'<div class="mequa-halt">COMPLIANCE HALT: {", ".join(verdict.blocked_by)}</div>', unsafe_allow_html=True)
         except OSError:
-            st.error("Ollama is not reachable.")
+            st.error("The language model is not reachable. Set META_API_KEY and META_BASE_URL.")
     report_path = Path("results/eval_all.json")
     if report_path.exists():
         st.subheader("Measured evaluation")

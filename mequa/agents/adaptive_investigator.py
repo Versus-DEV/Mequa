@@ -44,8 +44,17 @@ def _clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
 
+def _default_model() -> str:
+    from mequa.agents import meta_client
+
+    if meta_client.provider() == "meta":
+        return meta_client.get_agent_model()
+    return os.getenv("PLANNER_MODEL", "llama3.2:3b")
+
+
 def _parse_args(raw) -> Dict[str, Any]:
-    """Ollama returns arguments as an object; some servers return a JSON string. Accept both."""
+    """Tool arguments arrive as an object from some servers and as a JSON-encoded
+    string from OpenAI-compatible ones (including the Meta API). Accept both."""
     if isinstance(raw, dict):
         return raw
     if isinstance(raw, str):
@@ -138,7 +147,7 @@ class AdaptiveInvestigator:
         max_grounding_retries: int = 2,
     ) -> None:
         self.session = session
-        self.model = model or os.getenv("PLANNER_MODEL", "llama3.2:3b")
+        self.model = model or _default_model()
         self.max_iterations = max_iterations
         self.strain_limit = strain_limit
         self.chat = chat_fn or chat

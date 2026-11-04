@@ -1,6 +1,8 @@
 """Download Segment Anything Model checkpoints.
 
 Default is SAM ViT-B because it is the most practical for CPU / 16 GB RAM.
+SAM 3.1 runs hosted through the Meta Model API (no local weights needed);
+`--model sam3.1` only prints where the gated local checkpoint lives.
 
 Usage:
     python scripts/download_sam_checkpoint.py
@@ -62,9 +64,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Download SAM checkpoint.")
     parser.add_argument(
         "--model",
-        choices=list(CHECKPOINTS.keys()),
+        choices=list(CHECKPOINTS.keys()) + ["sam3.1"],
         default="vit_b",
-        help="SAM model variant. Use vit_b for CPU laptops.",
+        help="SAM model variant. Use vit_b for CPU laptops; sam3.1 prints hosted-setup info.",
     )
     parser.add_argument(
         "--force",
@@ -73,6 +75,15 @@ def main() -> int:
     )
 
     args = parser.parse_args()
+
+    if args.model == "sam3.1":
+        print("SAM 3.1 is used hosted (model 'sam-3.1' on the Meta Model API).")
+        print("No local weights are needed: set META_API_KEY and install meta-sam-parser.")
+        print("For a local copy instead, accept the SAM License and fetch the gated")
+        print("checkpoint 'facebook/sam3.1' from https://huggingface.co/facebook/sam3.1")
+        print(f"(file sam3.1_multiplex.pt, about 3.4 GB) into: {MODEL_DIR}")
+        print("Note: local SAM 3.1 needs a CUDA GPU; this loader does not run it on CPU.")
+        return 0
 
     filename, url = CHECKPOINTS[args.model]
     destination = MODEL_DIR / filename

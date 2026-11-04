@@ -19,7 +19,7 @@ def _backend(kind):
 
 @mcp.tool()
 def compliance_check(text: str) -> dict:
-    """Check a request with the Mequa compliance firewall (rules, Llama Guard, Llama intent classifier). Returns whether it is allowed and which layers blocked it."""
+    """Check a request with the Mequa compliance firewall (rules, Meta guard, intent classifier). Returns whether it is allowed and which layers blocked it."""
     verdict = check_request(text)
     return {
         "allowed": verdict.allowed,
@@ -68,11 +68,11 @@ def simulate_simulink(model_path: str, variables: str = "", t_end: float = 6.0) 
 
 @mcp.tool()
 def run_experiment(request: str, backend: str = "numpy") -> dict:
-    """Run the full Mequa agent: the request passes the firewall, Llama plans the experiment, the solver runs, Llama summarizes, and the reply is checked. Requires Ollama with llama3.2:3b and llama-guard3:1b."""
+    """Run the full Mequa agent: the request passes the firewall, the model plans the experiment, the solver runs, the model summarizes, and the reply is checked. Requires META_API_KEY."""
     try:
         out = agent_mod.run_agent(request, backend=_backend(backend))
     except OSError:
-        return {"error": "Ollama is not reachable"}
+        return {"error": "Language model is not reachable; check META_API_KEY and META_BASE_URL"}
     out.pop("result", None)
     return out
 

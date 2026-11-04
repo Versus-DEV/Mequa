@@ -1,4 +1,7 @@
-"""Check whether both Ollama nodes are reachable.
+"""Check whether the language model is reachable.
+
+Meta path (default): probes the Meta Model API with META_API_KEY.
+Legacy path (LLM_PROVIDER=ollama): probes both Ollama nodes.
 
 Usage:
     python scripts/check_two_machine_ollama.py
@@ -16,7 +19,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
-from mequa.guard.remote_guard import list_models
+from mequa.agents import meta_client  # noqa: E402
 
 
 def load_env_file(path: Path = Path(".env")) -> None:
@@ -43,7 +46,29 @@ def load_env_file(path: Path = Path(".env")) -> None:
         os.environ.setdefault(key, value)
 
 
+def check_meta() -> bool:
+    print(f"[META] {meta_client.get_base_url()}")
+    if not os.getenv("META_API_KEY", "").strip():
+        print("  FAIL: META_API_KEY is not set.")
+        return False
+    out = meta_client.status(timeout=10.0)
+    if not out.get("up"):
+        print(f"  FAIL: {out.get('error', 'unreachable')}")
+        return False
+    print("  PASS: Meta Model API reachable.")
+    print(f"  agent model: {meta_client.get_agent_model()}")
+    print(f"  guard model: {meta_client.get_guard_model()}")
+    print(f"  planner model: {meta_client.get_planner_model()}")
+    if out.get("models"):
+        print("  Models: ")
+        for model in out["models"]:
+            print(f"    - {model}")
+    return True
+
+
 def check_node(name: str, url: str) -> bool:
+    from mequa.guard.remote_guard import list_models
+
     print(f"[{name}] {url}")
 
     try:
@@ -66,6 +91,14 @@ def check_node(name: str, url: str) -> bool:
 
 def main() -> int:
     load_env_file()
+
+    if meta_client.provider() == "meta":
+        print("Mequa Meta Model API check")
+        print("=" * 50)
+        ok = check_meta()
+        print("=" * 50)
+        print("PASS: Meta API reachable." if ok else "FAIL: Meta API unreachable.")
+        return 0 if ok else 1
 
     main_url = os.getenv("OLLAMA_MAIN_URL", "http://127.0.0.1:11434")
     guard_url = os.getenv("OLLAMA_GUARD_URL", main_url)

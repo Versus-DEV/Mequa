@@ -1,4 +1,4 @@
-"""Llama intent classifier for research pivot."""
+"""Intent classifier for research pivot (Meta model by default, Llama legacy)."""
 
 from __future__ import annotations
 
@@ -26,7 +26,10 @@ def classify_intent(
     Returns:
         Dict with intent classification.
     """
-    model = model or os.getenv("INTENT_MODEL", "llama3.2:3b")
+    if model is None:
+        from mequa import firewall as _fw
+
+        model = _fw.INTENT_MODEL
     base_url = base_url or get_guard_url()
 
     system_prompt = """You are an intent classifier for a biomechanics research tool.

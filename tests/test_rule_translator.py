@@ -43,6 +43,6 @@ def test_unreadable_description_is_refused_with_a_reason():
 def test_ollama_down_gives_friendly_error_and_optional_fallback():
     down = lambda **kw: {"error": "URLError: <urlopen error [WinError 10061] refused>"}
     off = translate_to_block_spec("first-order, gain 2, time constant 1", generate_fn=down)
-    assert not off["success"] and "Ollama is not reachable" in off["error"] and "source" not in off
+    assert not off["success"] and "not reachable" in off["error"] and "source" not in off
     on = translate_to_block_spec("first-order, gain 2, time constant 1", generate_fn=down, offline_fallback=True)
-    assert on["success"] and on["source"] == "rules" and "Ollama is not reachable" in on["llm_error"]
+    assert on["success"] and on["source"] == "rules" and "not reachable" in on["llm_error"]

@@ -59,11 +59,11 @@ tab_spec, tab_validation, tab_simulation = st.tabs(
 with tab_spec:
     if translation.get("success"):
         if translation.get("source") == "rules":
-            st.warning(translation.get("llm_error", "Llama was not used.") + "\n\nThis block spec was written by the built-in rule parser, not by Llama. "
+            st.warning(translation.get("llm_error", "The model was not used.") + "\n\nThis block spec was written by the built-in rule parser, not by the model. "
                        "It understands first-order, second-order and integrator systems with an optional step input and gain blocks.")
         st.json(translation["block_spec"])
 
-        with st.expander("Raw Llama response"):
+        with st.expander("Raw model response"):
             st.code(translation.get("raw", ""))
     else:
         st.error(translation.get("error", "Unknown error"))
@@ -71,7 +71,7 @@ with tab_spec:
                    "\"second-order, natural frequency 3, damping ratio 0.4, step of amplitude 2\".")
 
         if "raw" in translation:
-            with st.expander("Raw Llama response"):
+            with st.expander("Raw model response"):
                 st.code(translation["raw"])
 
 with tab_validation:

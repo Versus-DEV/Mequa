@@ -3,6 +3,10 @@
     python -m mequa.eval_segmentation --image data/images/IMG.tif --mask data/gt/IMG.png \
         --methods classical classical_split sam --grids 16 24 32 --out results/seg_eval.json
 
+    The "sam" method uses SAM 3.1 via the Meta Model API when META_API_KEY and
+    meta-sam-parser are present (SAM_BACKEND=api to require it), else local ViT-B.
+
+
 Ground truth is decoded into one instance per nucleus (each distinct colour or label value, split
 into connected pieces). A detection is correct when its centre lies within --radius pixels of an
 unmatched ground-truth centre (optimal one-to-one matching). Reported: precision, recall, F1,
@@ -92,11 +96,14 @@ def run_classical(image, split, min_distance):
     return pts, time.perf_counter() - t  # classical returns image-frame (x, col; y, row)
 
 
-def run_sam(image, grid, min_area):
+def run_sam(image, grid, min_area, backend=None):
+    import os
+
     from mequa.vision.cells import cells_from_masks
     from mequa.vision.sam_loader import SamLoader
 
-    loader = SamLoader()
+    backend = backend or os.getenv("SAM_BACKEND", "auto")
+    loader = SamLoader(backend=backend)
     loader.configure(points_per_side=grid, max_masks=1000, max_image_side=max(image.shape[:2]))
     ok, msg = loader.is_available()
     if not ok:
@@ -105,7 +112,7 @@ def run_sam(image, grid, min_area):
     res = loader.generate_masks(image)
     cells = cells_from_masks(res.masks, min_area=min_area)
     secs = time.perf_counter() - t
-    extra = {"masks": len(res.masks), "background_dropped": cells.masks_dropped_background, "overlap_dropped": cells.masks_dropped_overlap}
+    extra = {"backend": res.source, "masks": len(res.masks), "background_dropped": cells.masks_dropped_background, "overlap_dropped": cells.masks_dropped_overlap}
     return to_image_frame(cells.points, image.shape[0]), secs, extra
 
 
@@ -122,6 +129,9 @@ def main():
     ap.add_argument("--radius", type=float, default=6.0)
     ap.add_argument("--min-distance", type=int, default=6)
     ap.add_argument("--min-area", type=int, default=40)
+    ap.add_argument("--backend", default=None,
+                    help="SAM backend: auto (SAM 3.1 API when configured, else local), api, or local. "
+                         "SAM_BACKEND env var is used when the flag is omitted.")
     ap.add_argument("--out", default="results/seg_eval.json")
     args = ap.parse_args()
 
@@ -136,7 +146,7 @@ def main():
     for m in args.methods:
         if m == "sam":
             for g in args.grids:
-                pts, secs, extra = run_sam(image, g, args.min_area)
+                pts, secs, extra = run_sam(image, g, args.min_area, backend=args.backend)
                 r = {"method": f"sam_grid{g}", "seconds": round(secs, 1), **extra, **match_points(pts, gt, args.radius)}
                 results.append(r)
                 print(r)

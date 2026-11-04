@@ -1,0 +1,17 @@
+{
+  "timestamp_utc": "2026-11-03T21:52:57.954676+00:00",
+  "source": "sam:upload-image",
+  "mask_count": 1,
+  "region_count": 0,
+  "stiffness_count": 0,
+  "stiffness_min": null,
+  "stiffness_max": null,
+  "stiffness_mean": null,
+  "duration_seconds": 111.2347,
+  "outputs": {
+    "masks_npy": "outputs\\sam\\masks.npy",
+    "mask_overlay_png": "outputs\\sam\\mask_overlay.png",
+    "geometry_csv": "outputs\\sam\\geometry_features.csv",
+    "stiffness_npy": "outputs\\solver\\stiffness_map.npy"
+  }
+}

@@ -36,11 +36,11 @@ def home() -> None:
         eyebrow="Tissue mechanics workspace",
     )
     ds = workspace.current(st.session_state)
-    main = chat_mod.ollama_status(os.getenv("OLLAMA_MAIN_URL") or "http://127.0.0.1:11434")
+    main = chat_mod.ollama_status()
     mode_txt = {"main": "Main machine", "dedicated": "Guard machine only", "auto": "Automatic"}[settings.guard_mode()]
     ui.kpis([
         ("Dataset", f"{ds.n} cells" if ds else "None loaded", f"{ds.dim}D · from {ds.source}" if ds else "Start in Image Lab or Workbench"),
-        ("Language model", "Online" if main["up"] else "Offline", "Ollama on this machine" if main["up"] else "Start Ollama to use the assistant"),
+        ("Language model", "Online" if main["up"] else "Offline", "Meta Model API" if main["up"] else "Set META_API_KEY to use the assistant"),
         ("Safety firewall", mode_txt, "Checks every request and every reply"),
     ])
 
@@ -62,7 +62,7 @@ def home() -> None:
         ]),
         ("Assistant and safety", [
             ("psychology", "Adaptive Agent", "The model calls the solver as tools, sweeps loads and writes a checked summary."),
-            ("shield", "Compliance Firewall", "Rules, Llama Guard and an intent check on every request."),
+            ("shield", "Compliance Firewall", "Rules, a Meta guard check and an intent check on every request."),
             ("schema", "Simulink Editor", "Plain English to a validated block spec to a simulation."),
         ]),
         ("System", [
@@ -75,12 +75,14 @@ def home() -> None:
         ui.cards(items)
 
     with st.expander("System details"):
+        from mequa.agents import meta_client
+        from mequa import firewall as firewall_mod
         loader = SamLoader()
         sam_ok, sam_message = loader.is_available()
-        guard_url = settings.configured_guard_url()
+        key_set = bool(os.getenv("META_API_KEY", "").strip())
         st.write(f"Python {sys.version.split()[0]} on {platform.system()} · SAM: {'ready' if sam_ok else 'unavailable'}")
-        st.write(f"Ollama main: `{os.getenv('OLLAMA_MAIN_URL', '127.0.0.1:11434')}` · guard: `{guard_url or 'not set'}`")
-        st.write(f"Guard model: `{os.getenv('GUARD_MODEL', 'llama-guard3:1b')}` · planner model: `{os.getenv('PLANNER_MODEL', 'llama3.2:3b')}`")
+        st.write(f"Model API: `{meta_client.get_base_url()}` · key: `{'set' if key_set else 'NOT SET'}`")
+        st.write(f"Guard model: `{firewall_mod.GUARD_MODEL}` · planner model: `{firewall_mod.INTENT_MODEL}`")
         st.write(sam_message)
 
 

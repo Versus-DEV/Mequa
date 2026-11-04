@@ -32,7 +32,13 @@ def translate_to_block_spec(
     Returns:
         Dict with block_spec JSON or error.
     """
-    model = model or os.getenv("PLANNER_MODEL", "llama3.2:3b")
+    if model is None:
+        from mequa.agents import meta_client
+
+        if meta_client.provider() == "meta":
+            model = meta_client.get_planner_model()
+        else:
+            model = os.getenv("PLANNER_MODEL", "llama3.2:3b")
 
     system_prompt = """You are a control systems engineer. Convert the user's description into a block-diagram specification.
 
@@ -108,10 +114,10 @@ Respond with ONLY the JSON. No explanation."""
 
 
 def _unreachable(user_prompt: str, error: str, attempts: int, offline_fallback: bool) -> Dict[str, Any]:
-    """Ollama did not answer (not running, wrong address, model missing). Say so in plain words."""
+    """The LLM did not answer (no key, no network, wrong address, model missing). Say so in plain words."""
     where = get_main_url()
-    friendly = (f"Ollama is not reachable at {where} ({error}). Start it (launcher: Start Ollama, or run `ollama serve`) "
-                "and make sure the planner model is pulled, then try again.")
+    friendly = (f"The language model is not reachable at {where} ({error}). Check META_API_KEY and META_BASE_URL, "
+                "then try again.")
     if offline_fallback:
         from mequa.blockspec.rule_translator import translate_offline
 

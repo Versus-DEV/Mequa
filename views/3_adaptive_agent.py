@@ -1,4 +1,4 @@
-"""Llama as a tool-using scientist. Every number comes from the verified solver; the answer is grounded."""
+"""Muse as a tool-using scientist. Every number comes from the verified solver; the answer is grounded."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from mequa.utils.env import load_env_file
 from mequa import ui, workspace  # noqa: E402
 
 load_env_file()
-ui.page_header('Adaptive Agent', 'Llama calls the solver, reads the numbers and decides what to run next. The firewall checks the request and the reply.')
+ui.page_header('Adaptive Agent', 'The model calls the solver, reads the numbers and decides what to run next. The firewall checks the request and the reply.')
 
 
 @st.cache_resource
@@ -37,7 +37,9 @@ with st.sidebar:
     n = st.slider("Synthetic cells", 300, 3000, 1000, 100)
     knn = st.slider("Neighbors per cell", 4, 14, 8)
     st.header("Agent")
-    model = st.selectbox("Llama model", ["llama3.2:3b", "llama3.1:latest"])
+    from mequa.agents import meta_client
+    _models = list(dict.fromkeys([meta_client.get_agent_model(), meta_client.get_planner_model()]))
+    model = st.selectbox("Model", _models)
     limit = st.number_input("Strain limit (p95 strain that counts as failure)", 0.005, 0.5, 0.05, 0.005, help="A modelling choice you set, not a measured tissue property.")
     max_iter = st.slider("Max tool rounds", 2, 8, 6)
     question = st.text_area("Research question", "Find the load at which this tissue sample reaches the strain limit.", height=100)
@@ -59,7 +61,7 @@ if run:
     else:
         pts, stiff = nb.synthetic_cells(n, seed=5, clusters=1, dim=3 if "3D" in source else 2), None
     sess = Session(pts, stiffness=stiff, backend=numpy_be(), k=3, knn=knn)
-    with st.spinner("Llama is working. On CPU a full run takes a minute or more."):
+    with st.spinner("The model is working."):
         out = AdaptiveInvestigator(sess, model=model, max_iterations=max_iter, strain_limit=limit).run(question)
     st.session_state["agent_out"] = out
 
@@ -72,10 +74,10 @@ if out["status"] == "blocked":
     st.error("BLOCKED by the firewall (" + ", ".join(out["blocked_by"]) + "). Mequa does not give guidance for individuals.")
     st.stop()
 if out["status"] == "model_unavailable":
-    st.error("Ollama is not reachable or the model is not installed: " + out["error"])
+    st.error("The language model is not reachable. Check META_API_KEY and META_BASE_URL: " + out["error"])
     st.stop()
 if out["status"] == "reply_blocked":
-    st.error("The generated reply was blocked by Llama Guard.")
+    st.error("The generated reply was blocked by the output guard.")
     st.stop()
 
 tab_sum, tab_trace, tab_ground = st.tabs(["Summary", "Tool-call trace", "Number grounding"])

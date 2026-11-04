@@ -1,0 +1,98 @@
+{
+  "timestamp_utc": "2026-10-29T20:20:07.343495+00:00",
+  "benchmarks": [
+    {
+      "backend": "numpy",
+      "num_cells": 1000,
+      "num_runs": 3,
+      "mean_seconds": 8.859999798005447e-05,
+      "min_seconds": 4.930000432068482e-05,
+      "max_seconds": 0.00016549999418202788,
+      "status": "success"
+    },
+    {
+      "backend": "rust",
+      "num_cells": 1000,
+      "num_runs": 3,
+      "mean_seconds": 0.0005849666655800926,
+      "min_seconds": 0.0004378000012366101,
+      "max_seconds": 0.0008140999998431653,
+      "status": "error"
+    },
+    {
+      "backend": "julia",
+      "num_cells": 1000,
+      "num_runs": 3,
+      "mean_seconds": 9.243687866667946,
+      "min_seconds": 0.00456329999724403,
+      "max_seconds": 27.720934800003306,
+      "status": "error"
+    },
+    {
+      "backend": "numpy",
+      "num_cells": 5000,
+      "num_runs": 3,
+      "mean_seconds": 4.7666665826303266e-05,
+      "min_seconds": 3.480000304989517e-05,
+      "max_seconds": 5.6400000175926834e-05,
+      "status": "success"
+    },
+    {
+      "backend": "rust",
+      "num_cells": 5000,
+      "num_runs": 3,
+      "mean_seconds": 0.00045056666325156886,
+      "min_seconds": 0.00039259999903151765,
+      "max_seconds": 0.0005545999956666492,
+      "status": "error"
+    },
+    {
+      "backend": "julia",
+      "num_cells": 5000,
+      "num_runs": 3,
+      "mean_seconds": 0.005291633334612318,
+      "min_seconds": 0.004748600003949832,
+      "max_seconds": 0.00572939999983646,
+      "status": "error"
+    },
+    {
+      "backend": "numpy",
+      "num_cells": 10000,
+      "num_runs": 3,
+      "mean_seconds": 6.183333607623354e-05,
+      "min_seconds": 4.2400002712383866e-05,
+      "max_seconds": 9.720000525703654e-05,
+      "status": "success"
+    },
+    {
+      "backend": "rust",
+      "num_cells": 10000,
+      "num_runs": 3,
+      "mean_seconds": 0.00042086666508112103,
+      "min_seconds": 0.00037229999725241214,
+      "max_seconds": 0.0005153000020072795,
+      "status": "error"
+    },
+    {
+      "backend": "julia",
+      "num_cells": 10000,
+      "num_runs": 3,
+      "mean_seconds": 0.005218666665314231,
+      "min_seconds": 0.005098599998746067,
+      "max_seconds": 0.00534489999699872,
+      "status": "error"
+    }
+  ],
+  "speedup_1000_cells": {
+    "rust_vs_numpy": 0.15146161857307322,
+    "julia_vs_numpy": 9.58491883954017e-06
+  },
+  "speedup_5000_cells": {
+    "rust_vs_numpy": 0.10579270441872242,
+    "julia_vs_numpy": 0.009007930597631908
+  },
+  "speedup_10000_cells": {
+    "rust_vs_numpy": 0.1469190629871228,
+    "julia_vs_numpy": 0.01184849311936469
+  }
+}

@@ -10,7 +10,6 @@ import os
 import platform
 import shutil
 import sys
-import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,15 +24,23 @@ def _version(name):
         return f"missing ({type(exc).__name__})"
 
 
-def _ollama(url):
-    if not url:
-        return {"url": None, "reachable": False}
+def _meta():
+    from mequa.agents import meta_client
+
+    base = meta_client.get_base_url()
+    if not os.environ.get("META_API_KEY", "").strip():
+        return {"url": base, "reachable": False, "key_set": False,
+                "models": {"agent": meta_client.get_agent_model(),
+                           "guard": meta_client.get_guard_model(),
+                           "planner": meta_client.get_planner_model()}}
     try:
-        with urllib.request.urlopen(url.rstrip("/") + "/api/tags", timeout=4) as r:
-            models = [m.get("name") for m in json.loads(r.read().decode()).get("models", [])]
-        return {"url": url, "reachable": True, "models": models}
+        out = meta_client.status(timeout=8.0)
+        return {"url": base, "reachable": bool(out.get("up")), "key_set": True,
+                "models": out.get("models", []),
+                **({"error": out["error"]} if "error" in out else {})}
     except Exception as exc:
-        return {"url": url, "reachable": False, "error": f"{type(exc).__name__}: {exc}"}
+        return {"url": base, "reachable": False, "key_set": True,
+                "error": f"{type(exc).__name__}: {exc}"}
 
 
 def main():
@@ -59,11 +66,11 @@ def main():
         "ram_gb": ram,
         "python": sys.version.split()[0],
         "packages": {p: _version(p) for p in PACKAGES},
-        "tools": {t: shutil.which(t) for t in ["julia", "cargo", "mpiexec", "mpirun", "ollama", "git"]},
+        "tools": {t: shutil.which(t) for t in ["julia", "cargo", "mpiexec", "mpirun", "git"]},
         "sam_checkpoints": sorted(p.name for p in sam.glob("*.pth")) if sam.exists() else [],
-        "ollama_main": _ollama(os.environ.get("OLLAMA_MAIN_URL", "http://127.0.0.1:11434")),
-        "ollama_guard": _ollama(os.environ.get("OLLAMA_GUARD_URL")),
-        "env": {k: os.environ.get(k) for k in ["PLANNER_MODEL", "GUARD_MODEL", "INTENT_MODEL", "SAM_CHECKPOINT"]},
+        "meta_api": _meta(),
+        "env": {k: os.environ.get(k) for k in ["LLM_PROVIDER", "META_BASE_URL", "META_AGENT_MODEL",
+                                              "META_GUARD_MODEL", "META_PLANNER_MODEL", "SAM_CHECKPOINT"]},
     }
     out = ROOT / "results" / f"env_{platform.node() or 'machine'}.json"
     out.parent.mkdir(exist_ok=True)

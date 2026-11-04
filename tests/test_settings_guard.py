@@ -7,6 +7,8 @@ from mequa import firewall, settings
 def _iso(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "PATH", tmp_path / "s.json")
     monkeypatch.delenv("MEQUA_GUARD_MODE", raising=False)
+    # These tests cover legacy two-machine Ollama routing, so pin the provider.
+    monkeypatch.setenv("LLM_PROVIDER", "ollama")
     monkeypatch.setenv("OLLAMA_MAIN_URL", "http://main:11434")
     monkeypatch.setenv("OLLAMA_GUARD_URL", "http://guard:11434")
     settings._probe_cache.clear()

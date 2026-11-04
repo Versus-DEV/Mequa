@@ -64,7 +64,7 @@ def test_simulink_editor_offline_uses_rules_and_says_so():
     assert not at.exception, [e.value for e in at.exception]
     tr = at.session_state["translation"]
     assert tr["success"] and tr["source"] == "rules"
-    assert any("Ollama is not reachable" in w.value for w in at.warning)
+    assert any("not reachable" in w.value for w in at.warning)
 
 
 def test_simulink_editor_offline_unparseable_text_gives_friendly_error():
@@ -73,7 +73,7 @@ def test_simulink_editor_offline_unparseable_text_gives_friendly_error():
     at.sidebar.text_area[0].set_value("make it nice").run()
     _btn(at.sidebar, "Generate Block Spec").click().run()
     assert not at.exception
-    assert any("Ollama is not reachable" in e.value for e in at.error)
+    assert any("not reachable" in e.value for e in at.error)
 
 
 def test_model_editor_end_to_end():
@@ -130,7 +130,10 @@ def test_chat_dock_commands_and_offline_message():
     at.chat_input[0].set_value("Find the load at which this sample reaches the strain limit.").run()
     assert not at.exception, [e.value for e in at.exception]
     texts = " ".join(m.value for m in at.markdown)
-    assert "Ollama is not running" in texts
+    errors = " ".join(e.value for e in at.error)
+    warnings = " ".join(w.value for w in at.warning)
+    all_ui_text = f"{texts} {errors} {warnings}"
+    assert "not reachable" in all_ui_text
 
 
 def test_cell_viewer_reads_the_edited_workspace_dataset():

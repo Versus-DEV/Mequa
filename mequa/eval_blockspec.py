@@ -1,4 +1,4 @@
-"""Measure how often Llama writes a block specification that is valid AND correct.
+"""Measure how often the model writes a block specification that is valid AND correct.
 
 Each prompt describes a system whose step response has a known analytic answer, so the check is
 not "does the JSON parse" but "does the simulated output match the maths":
@@ -8,8 +8,8 @@ not "does the JSON parse" but "does the simulated output match the maths":
 Stages per prompt: JSON found -> validator passes -> simulation runs -> matches analytic answer ->
 output drives the strain solver (coupling) and strain responds to the signal.
 
-Run:  python -m mequa.eval_blockspec --models llama3.2:3b llama3.1:latest
-Smoke test without Ollama:  python -m mequa.eval_blockspec --dry-run
+Run:  python -m mequa.eval_blockspec --models muse-spark-1.3 muse-wonder
+Smoke test without the API:  python -m mequa.eval_blockspec --dry-run
 """
 
 from __future__ import annotations
@@ -161,7 +161,7 @@ def _dry_translate(prompt, model=None):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("--models", nargs="+", default=["llama3.2:3b", "llama3.1:latest"])
+    ap.add_argument("--models", nargs="+", default=["muse-spark-1.3", "muse-wonder"])
     ap.add_argument("--out", default="results/blockspec_eval.json")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)

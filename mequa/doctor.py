@@ -40,7 +40,6 @@ EXPECTED = [
     "solvers/smoke_test.jl",
 ]
 MODULES = ["mequa_rs", "mcp", "torchvision", "numpy", "scipy", "pandas", "PIL", "plotly", "streamlit", "juliacall", "torch", "segment_anything"]
-OLLAMA_MODELS = ["llama3.2:3b", "llama-guard3:1b"]
 
 
 def main():
@@ -88,16 +87,27 @@ def main():
     for tool in ("cargo", "rustc", "maturin"):
         print(f"  {'OK     ' if shutil.which(tool) else 'MISSING'} {tool}")
 
-    print("\nOllama")
+    print("\nMeta Model API")
+    import os
+
+    from mequa.agents import meta_client
+    from mequa.utils.env import load_env_file
+
+    load_env_file()
+
+    key = os.getenv("META_API_KEY", "").strip()
+    print(f"  {'OK     ' if key else 'MISSING'} META_API_KEY")
+    print(f"  base: {meta_client.get_base_url()}")
+    print(f"  agent model: {meta_client.get_agent_model()} · guard model: {meta_client.get_guard_model()} "
+          f"· planner model: {meta_client.get_planner_model()}")
     try:
-        with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=5) as resp:
-            tags = [m["name"] for m in json.loads(resp.read().decode("utf-8")).get("models", [])]
-        print(f"  reachable, models: {', '.join(tags) or 'none'}")
-        for need in OLLAMA_MODELS:
-            have = any(t == need or t.startswith(need.split(":")[0] + ":") and need.split(":")[1] in t for t in tags)
-            print(f"  {'OK     ' if have else 'MISSING'} {need}")
+        out = meta_client.status(timeout=10.0)
+        if out.get("up"):
+            print(f"  reachable, models: {', '.join(out.get('models', [])) or '(list unavailable)'}")
+        else:
+            print(f"  NOT REACHABLE ({out.get('error', 'unknown')}); check META_API_KEY and META_BASE_URL")
     except Exception as exc:
-        print(f"  NOT REACHABLE ({type(exc).__name__}); start Ollama")
+        print(f"  NOT REACHABLE ({type(exc).__name__}); check META_API_KEY and META_BASE_URL")
 
 
 if __name__ == "__main__":

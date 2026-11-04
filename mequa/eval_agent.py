@@ -1,4 +1,4 @@
-"""Measure the Llama tool-calling investigator against a ground truth it never sees.
+"""Measure the tool-calling investigator against a ground truth it never sees.
 
 Ground truth: a fine, serial load sweep on the same mesh, with the same threshold rule
 (parallel.find_threshold, 95th percentile strain reaching the strain limit). The agent has to
@@ -12,9 +12,9 @@ crossing, the threshold the tool computed, the error against ground truth, wheth
 appears in the final summary, the number-grounding outcome on the first attempt, whether the template
 fallback fired, rounds used and seconds.
 
-Run (Ollama must be up):
-  python -m mequa.eval_agent --models llama3.2:3b llama3.1:latest --seeds 1 2 3 --phrasings 3
-Smoke test without Ollama:
+Run (META_API_KEY must be set):
+  python -m mequa.eval_agent --models muse-spark-1.3 muse-wonder --seeds 1 2 3 --phrasings 3
+Smoke test without the API:
   python -m mequa.eval_agent --dry-run
 """
 
@@ -185,12 +185,12 @@ def _dry_run_chat():
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("--models", nargs="+", default=["llama3.2:3b", "llama3.1:latest"])
+    ap.add_argument("--models", nargs="+", default=["muse-spark-1.3", "muse-wonder"])
     ap.add_argument("--seeds", nargs="+", type=int, default=[1, 2, 3])
     ap.add_argument("--phrasings", type=int, default=3, help="how many of the %d phrasings to use per seed" % len(PHRASINGS))
     ap.add_argument("--points", default=None, help="CSV of real cell coordinates (x,y[,z]) to use instead of synthetic meshes; the strain limit is then chosen automatically")
     ap.add_argument("--out", default="results/agent_eval.json")
-    ap.add_argument("--dry-run", action="store_true", help="scripted model, no Ollama, no firewall; checks the harness only")
+    ap.add_argument("--dry-run", action="store_true", help="scripted model, no API, no firewall; checks the harness only")
     args = ap.parse_args(argv)
 
     from mequa.firewall import Verdict

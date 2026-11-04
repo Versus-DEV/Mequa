@@ -1,4 +1,4 @@
-"""Client for the remote Llama Guard node.
+"""Client for the guard model (Meta Model API by default, remote Ollama node legacy).
 
 This module is intentionally dependency-light.
 It uses only Python standard library networking.
@@ -16,7 +16,17 @@ from typing import Any, Dict, List
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
 
+def _use_meta() -> bool:
+    from mequa.agents import meta_client
+
+    return meta_client.provider() == "meta"
+
+
 def get_base_url(env_name: str = "OLLAMA_GUARD_URL", default: str = "http://127.0.0.1:11434") -> str:
+    if _use_meta():
+        from mequa.agents import meta_client
+
+        return meta_client.get_base_url()
     return os.getenv(env_name, default).rstrip("/")
 
 
@@ -57,16 +67,29 @@ def _post_json(
 
 
 def ping_ollama(base_url: str, timeout: float = 10.0) -> Dict[str, Any]:
-    """Check whether an Ollama server is reachable."""
+    """Check whether the model API is reachable. Raises on failure (callers treat it as down)."""
+    if _use_meta():
+        from mequa.agents import meta_client
+
+        out = meta_client.status(timeout=timeout)
+        if not out.get("up"):
+            raise OSError(out.get("error", "Meta API unreachable"))
+        return {"models": [{"name": m} for m in out.get("models", [])]}
     url = base_url.rstrip("/") + "/api/tags"
     return _get_json(url, timeout=timeout)
 
 
 def list_models(base_url: str, timeout: float = 10.0) -> List[str]:
-    """List models available on an Ollama server."""
+    """List models available on the model API."""
     response = ping_ollama(base_url, timeout=timeout)
     models = response.get("models", [])
-    return [str(model.get("name", "")) for model in models]
+    names = []
+    for model in models:
+        if isinstance(model, dict):
+            names.append(str(model.get("name", "")))
+        else:
+            names.append(str(model))
+    return [n for n in names if n]
 
 
 def classify_prompt(
@@ -75,11 +98,26 @@ def classify_prompt(
     model: str | None = None,
     timeout: float = 120.0,
 ) -> Dict[str, Any]:
-    """Send a prompt to Llama Guard and return a simple safe/unsafe decision.
+    """Send a prompt to the guard model and return a simple safe/unsafe decision.
 
     This is a practical hackathon version. For the final firewall evaluation,
     keep the measured round-based evaluation script as the source of truth.
     """
+    if _use_meta():
+        from mequa.agents import meta_client
+
+        model = model or meta_client.get_guard_model()
+        out = meta_client.generate(prompt=prompt, model=model, temperature=0.0, max_tokens=32, timeout=timeout)
+        if "error" in out:
+            return {"decision": "unsafe", "raw": "", "model": model,
+                    "base_url": (base_url or get_base_url()).rstrip("/"), "error": out["error"]}
+        raw = str(out.get("response", "")).strip().lower()
+        return {
+            "decision": "unsafe" if "unsafe" in raw else ("safe" if "safe" in raw else "unsafe"),
+            "raw": raw,
+            "model": model,
+            "base_url": (base_url or get_base_url()).rstrip("/"),
+        }
     base_url = (base_url or get_base_url()).rstrip("/")
     model = model or os.getenv("GUARD_MODEL", "llama-guard3:1b")
 
